@@ -34,6 +34,14 @@ pnpm install
 pnpm build
 ```
 
+To start a new knowledge base in your project:
+
+```sh
+axm init ./docs/kb
+```
+
+This creates `types.axm` with six recommended types: `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`.
+
 ## CLI
 
 ```sh
@@ -42,11 +50,13 @@ node cli/dist/index.js <command> [dir] [options]
 
 | Command | Description |
 |---|---|
+| `init [dir]` | Create `types.axm` with recommended default types |
 | `check [dir]` | Validate all `.axm` files |
 | `index [dir]` | List all types and statements |
 | `query <id> [dir]` | Look up a statement by ID |
 | `search <query> [dir]` | Search by ID and value text |
 | `add <value> [dir]` | Append a new statement (unique ID guaranteed) |
+| `refs <id> [dir]` | List references to a statement ID, or statements of a type |
 
 All commands accept `--json` for machine-readable output. `index`, `search`, and `add` accept `--type <name>` to filter or tag by statement type.
 

@@ -23,31 +23,52 @@ stmt         plain1 "untyped statement"
 
 ## Workflow
 
-**1. Orient — list everything in the KB:**
+**0. If no KB exists yet, initialise one:**
+```
+axm init .
+```
+Creates `types.axm` with six recommended types: `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`. Fails if `.axm` files already exist.
+
+**1. Check what types exist first:**
+```
+axm index . --types --json
+```
+Returns `[{ name, description }, ...]`. Always do this before adding statements — use existing types rather than inventing new ones.
+
+**3. Orient — list everything in the KB:**
 ```
 axm index . --json
 ```
 Returns `{ types: [...], statements: [...] }`. Each statement has `id`, `type`, `value`, `file`.
 
-**2. Search by keyword or phrase:**
+**4. Search by keyword or phrase:**
 ```
 axm search "your query" . --json
 ```
 Matches against both IDs and statement text. Returns ranked results (exact ID match first, then partial ID, then value text). All words in a multi-word query must match.
 
-**3. Filter by type:**
+**5. Filter by type:**
 ```
 axm index . --json --type decision
 axm search "query" . --json --type unknown
 ```
 
-**4. Look up a specific statement by ID:**
+**6. Look up a specific statement by ID:**
 ```
 axm query <id> . --json
 ```
 Returns `{ id, type, value, file }` or `null` (exit 1) if not found.
 
-**5. Validate the KB:**
+**7. Find references to a statement or type:**
+```
+axm refs <id> . --json
+```
+- If `<id>` is a **statement ID** → returns all statements whose value contains `@id`
+- If `<id>` is a **type name** → returns all statements of that type
+
+Run this before modifying a statement. If other statements reference it, re-evaluate whether they still hold — a change in one decision can invalidate or require updates to everything that depends on it.
+
+**8. Validate the KB:**
 ```
 axm check . --json
 ```

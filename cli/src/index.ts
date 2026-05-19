@@ -5,11 +5,19 @@ import { indexCommand } from './commands/index-cmd.js'
 import { queryCommand } from './commands/query.js'
 import { searchCommand } from './commands/search.js'
 import { addCommand } from './commands/add.js'
+import { refsCommand } from './commands/refs.js'
+import { initCommand } from './commands/init.js'
 
 program
   .name('axm')
   .description('Axiomate knowledge base CLI')
   .version('0.1.0')
+
+program
+  .command('init [dir]')
+  .description('Create a knowledge.axm file with recommended default types (default: current directory)')
+  .option('--json', 'output as JSON')
+  .action((dir = '.', opts) => initCommand(dir, opts))
 
 program
   .command('check [dir]')
@@ -22,6 +30,7 @@ program
   .description('List all indexed types and statements (default: current directory)')
   .option('--json', 'output as JSON')
   .option('--type <name>', 'filter statements by type')
+  .option('--types', 'list only type declarations')
   .action((dir = '.', opts) => indexCommand(dir, opts))
 
 program
@@ -45,5 +54,11 @@ program
   .option('--file <path>', 'target .axm file (required when multiple files exist)')
   .option('--json', 'output as JSON')
   .action((value, dir = '.', opts) => addCommand(value, dir, opts))
+
+program
+  .command('refs <id> [dir]')
+  .description('List references to a statement ID, or statements of a type (default: current directory)')
+  .option('--json', 'output as JSON')
+  .action((id, dir = '.', opts) => refsCommand(id, dir, opts))
 
 program.parse()

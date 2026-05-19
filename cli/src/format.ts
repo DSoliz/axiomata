@@ -66,6 +66,15 @@ export function formatCheckSummary(errors: AxmError[], fileCount: number): strin
   return formatErrors(errors) + count
 }
 
+export function formatTypes(index: KnowledgeIndex): string {
+  const types = [...index.types.values()].sort((a, b) => a.name.localeCompare(b.name))
+  if (types.length === 0) return 'Types (0)\n  (none)'
+  return [
+    `Types (${types.length})`,
+    ...types.map(t => `  ${t.name.padEnd(20)} "${t.description}"`),
+  ].join('\n')
+}
+
 export function formatIndex(index: KnowledgeIndex, typeFilter?: string): string {
   const types = [...index.types.values()].sort((a, b) => a.name.localeCompare(b.name))
   let stmts = [...index.statements.values()].sort((a, b) => a.id.localeCompare(b.id))
@@ -114,4 +123,18 @@ export function formatSearchResults(stmts: IndexedStatement[], query: string): s
     const type = s.statementType ? `[${s.statementType}]` : '[untyped]'
     return `  ${s.id.padEnd(24)} ${type.padEnd(18)} ${renderValue(s.value)}`
   }).join('\n')
+}
+
+export function formatRefs(id: string, refs: IndexedStatement[], mode: 'statement' | 'type'): string {
+  const header = mode === 'statement'
+    ? `References to @${id} (${refs.length})`
+    : `Statements of type '${id}' (${refs.length})`
+  if (refs.length === 0) return `${header}\n  (none)`
+  return [
+    header,
+    ...refs.map(s => {
+      const type = s.statementType ? `[${s.statementType}]` : '[untyped]'
+      return `  ${s.id.padEnd(24)} ${type.padEnd(18)} ${renderValue(s.value)}`
+    }),
+  ].join('\n')
 }

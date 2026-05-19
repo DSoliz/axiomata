@@ -15,6 +15,8 @@ import type {
   Hover,
   CompletionParams,
   CompletionItem,
+  ReferenceParams,
+  Location,
 } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { parseFile, buildIndex } from '@axiomate/parser';
@@ -139,6 +141,7 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => ({
   capabilities: {
     textDocumentSync: TextDocumentSyncKind.Full,
     hoverProvider: true,
+    referencesProvider: true,
     completionProvider: { triggerCharacters: [':', '@'] },
     workspace: { workspaceFolders: { supported: true } },
   },
@@ -181,6 +184,90 @@ connection.onHover((params: HoverParams): Hover | null => {
   }
 
   return null;
+});
+
+type ResolvedPosition =
+  | { kind: 'statement'; id: string }
+  | { kind: 'type'; name: string }
+
+function resolveIdAtPosition(uri: string, pos: { line: number; character: number }): ResolvedPosition | null {
+  const sourceFile = sourceFiles.get(uri);
+  if (!sourceFile) return null;
+
+  for (const decl of sourceFile.declarations) {
+    if (decl.kind !== 'statement') continue;
+    for (const seg of decl.value) {
+      if (seg.kind !== 'reference') continue;
+      const r = seg.range;
+      if (r.start.line === pos.line && r.start.character <= pos.character && pos.character <= r.end.character) {
+        return { kind: 'statement', id: seg.id };
+      }
+    }
+  }
+
+  for (const decl of sourceFile.declarations) {
+    if (decl.kind === 'statement') {
+      const r = decl.range;
+      if (r.start.line <= pos.line && pos.line <= r.end.line) {
+        return { kind: 'statement', id: decl.id };
+      }
+    } else if (decl.kind === 'type') {
+      const r = decl.range;
+      if (r.start.line <= pos.line && pos.line <= r.end.line) {
+        return { kind: 'type', name: decl.name };
+      }
+    }
+  }
+
+  return null;
+}
+
+connection.onReferences((params: ReferenceParams): Location[] => {
+  const resolved = resolveIdAtPosition(params.textDocument.uri, params.position);
+  if (!resolved) return [];
+
+  const locations: Location[] = [];
+
+  if (resolved.kind === 'statement') {
+    const { id } = resolved;
+
+    if (params.context.includeDeclaration) {
+      const stmt = currentIndex.statements.get(id);
+      if (stmt) {
+        locations.push({ uri: pathToFileURL(stmt.file).toString(), range: axmToLsp(stmt.range) });
+      }
+    }
+
+    for (const [uri, file] of sourceFiles) {
+      for (const decl of file.declarations) {
+        if (decl.kind !== 'statement') continue;
+        for (const seg of decl.value) {
+          if (seg.kind === 'reference' && seg.id === id) {
+            locations.push({ uri, range: axmToLsp(seg.range) });
+          }
+        }
+      }
+    }
+  } else {
+    const { name } = resolved;
+
+    if (params.context.includeDeclaration) {
+      const type = currentIndex.types.get(name);
+      if (type) {
+        locations.push({ uri: pathToFileURL(type.file).toString(), range: axmToLsp(type.range) });
+      }
+    }
+
+    for (const [uri, file] of sourceFiles) {
+      for (const decl of file.declarations) {
+        if (decl.kind === 'statement' && decl.statementType === name) {
+          locations.push({ uri, range: axmToLsp(decl.range) });
+        }
+      }
+    }
+  }
+
+  return locations;
 });
 
 connection.onCompletion((params: CompletionParams): CompletionItem[] => {
