@@ -42,6 +42,9 @@ importers:
 
   lsp:
     dependencies:
+      '@axiomate/core':
+        specifier: workspace:*
+        version: link:../core
       '@axiomate/parser':
         specifier: workspace:*
         version: link:../parser
@@ -52,6 +55,9 @@ importers:
         specifier: ^1.0.12
         version: 1.0.12
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
       vitest:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.19.19)

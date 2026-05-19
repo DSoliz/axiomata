@@ -2,16 +2,22 @@
   "name": "@axiomate/lsp",
   "version": "0.1.0",
   "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "axiomate-lsp": "dist/index.js"
+  },
   "scripts": {
     "build": "tsc --build",
     "test": "vitest run"
   },
   "dependencies": {
+    "@axiomate/core": "workspace:*",
     "@axiomate/parser": "workspace:*",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "vitest": "^2.0.0"
   }
 }
