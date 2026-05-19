@@ -1,0 +1,17 @@
+{
+  "name": "@axiomate/lsp",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@axiomate/parser": "workspace:*",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  }
+}

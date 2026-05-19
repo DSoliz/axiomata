@@ -1,0 +1,4 @@
+type domain-term "this is an unknown"
+type decision "this is a decsision"
+type unknown "this is an unknown"
+

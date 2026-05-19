@@ -1,0 +1,17 @@
+// This is a comment
+
+// Every stmt is global by default
+
+// string can contain references to variables and stmnt
+// statments
+// stmt:[]type [variable name] [string]
+stmt:decision a1 "@fast-restaurant"
+stmt:decision a2 "because of @a1 the website"
+stmt:unknown u2 "should @fast-restaurant website"
+
+// statments can also be declared this way. When typed this way as soon as you type a `"` the lsp will generate a unique id and make a generic stmt
+"" df131 stmt
+
+// later on the user can type : after stmnt the lsp will bring up the list of types
+"" df131 stmt:decision
+

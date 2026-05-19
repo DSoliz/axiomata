@@ -1,0 +1,12 @@
+{
+  "name": "axiomate",
+  "private": true,
+  "scripts": {
+    "build": "tsc --build",
+    "build:clean": "tsc --build --clean",
+    "test": "pnpm -r run test"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

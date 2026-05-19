@@ -1,0 +1,19 @@
+{
+  "name": "@axiomate/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "axm": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@axiomate/parser": "workspace:*",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  }
+}
