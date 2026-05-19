@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { AxmError, Range } from '@axiomate/core'
+import type { AxmError, Range } from '@axiomata/core'
 import { formatCheckSummary, formatErrors, formatIndex, formatQueryResult } from './format.js'
-import type { KnowledgeIndex, IndexedStatement } from '@axiomate/core'
+import type { KnowledgeIndex, IndexedStatement } from '@axiomata/core'
 
 function range(line: number, char: number): Range {
   return { start: { line, character: char }, end: { line, character: char + 1 } }

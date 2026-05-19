@@ -1,4 +1,4 @@
-import type { IndexedStatement } from '@axiomate/core'
+import type { IndexedStatement } from '@axiomata/core'
 import { loadKnowledgeBase } from '../load-kb.js'
 import { stmtToJson, formatRefs } from '../format.js'
 

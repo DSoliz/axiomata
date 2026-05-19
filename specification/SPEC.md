@@ -1,4 +1,4 @@
-# Axiomate Format Specification
+# Axiomata Format Specification
 
 **Version**: 0.1.0  
 **File extension**: `.axm`
@@ -7,7 +7,7 @@
 
 ## Overview
 
-Axiomate (`.axm`) is a plain-text format for building decision knowledge bases. A knowledge base is a collection of `.axm` files. Each file contains **statements** — typed, named entries with a string value. All statements across all files in a knowledge base are globally indexed and can be referenced by any file without explicit imports.
+Axiomata (`.axm`) is a plain-text format for building decision knowledge bases. A knowledge base is a collection of `.axm` files. Each file contains **statements** — typed, named entries with a string value. All statements across all files in a knowledge base are globally indexed and can be referenced by any file without explicit imports.
 
 ---
 

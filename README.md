@@ -1,4 +1,4 @@
-# Axiomate
+# Axiomata
 
 A plain-text format for decision knowledge bases. Store architectural decisions, open questions, and domain vocabulary in `.axm` files — queryable by humans and agents alike.
 
@@ -69,7 +69,7 @@ node cli/dist/index.js add "we use JWT for auth" ./my-kb --type decision --id au
 
 ## Editor setup (Helix)
 
-Copy `examples/helix-languages.toml` into `~/.config/helix/languages.toml` and replace `/path/to/axiomate` with the path to this repo. Then build the grammar:
+Copy `examples/helix-languages.toml` into `~/.config/helix/languages.toml` and replace `/path/to/axiomata` with the path to this repo. Then build the grammar:
 
 ```sh
 hx --grammar build

@@ -1,4 +1,4 @@
-import type { IndexedStatement, KnowledgeIndex, ValueSegment } from '@axiomate/core'
+import type { IndexedStatement, KnowledgeIndex, ValueSegment } from '@axiomata/core'
 
 export function renderValue(segments: ValueSegment[]): string {
   return segments.map(s => s.kind === 'text' ? s.value : `@${s.id}`).join('')

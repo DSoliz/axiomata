@@ -1,5 +1,5 @@
 {
-  "name": "@axiomate/parser",
+  "name": "@axiomata/parser",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@axiomate/core": "workspace:*"
+    "@axiomata/core": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^2.0.0"

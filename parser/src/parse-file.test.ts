@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Declaration } from '@axiomate/core'
+import type { Declaration } from '@axiomata/core'
 import { parseFile } from './parse-file.js'
 
 const TYPES = `type domain-term "a domain term"

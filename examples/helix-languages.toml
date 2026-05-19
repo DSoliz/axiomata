@@ -2,7 +2,7 @@
 # Copy the relevant sections into ~/.config/helix/languages.toml
 # (or merge with your existing file).
 #
-# Replace /path/to/axiomate with the absolute path to this repo.
+# Replace /path/to/axiomata with the absolute path to this repo.
 
 [[language]]
 name = "axm"
@@ -11,8 +11,8 @@ file-types = ["axm"]
 comment-token = "//"
 indent = { tab-width = 2, unit = "  " }
 roots = []
-language-servers = ["axiomate-lsp"]
+language-servers = ["axiomata-lsp"]
 
-[language-server.axiomate-lsp]
+[language-server.axiomata-lsp]
 command = "node"
-args = ["/path/to/axiomate/lsp/dist/index.js"]
+args = ["/path/to/axiomata/lsp/dist/index.js"]

@@ -1,5 +1,5 @@
 {
-  "name": "@axiomate/cli",
+  "name": "@axiomata/cli",
   "version": "0.1.0",
   "type": "module",
   "bin": {
@@ -10,8 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@axiomate/core": "workspace:*",
-    "@axiomate/parser": "workspace:*",
+    "@axiomata/core": "workspace:*",
+    "@axiomata/parser": "workspace:*",
     "commander": "^12.0.0"
   },
   "devDependencies": {

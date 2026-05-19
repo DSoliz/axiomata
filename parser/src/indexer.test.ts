@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseFile } from './parse-file.js'
 import { buildIndex } from './indexer.js'
-import type { SourceFile } from '@axiomate/core'
+import type { SourceFile } from '@axiomata/core'
 
 const TYPES = `type domain-term "a domain term"
 type decision "a decision"

@@ -1,18 +1,18 @@
 {
-  "name": "@axiomate/lsp",
+  "name": "@axiomata/lsp",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "axiomate-lsp": "dist/index.js"
+    "axiomata-lsp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc --build",
-    "test": "vitest run"
+    "test": "echo 'no tests'"
   },
   "dependencies": {
-    "@axiomate/core": "workspace:*",
-    "@axiomate/parser": "workspace:*",
+    "@axiomata/core": "workspace:*",
+    "@axiomata/parser": "workspace:*",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
   },

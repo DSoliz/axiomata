@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { tokenizeLine } from './tokenizer.js'
 import { parseLine } from './line-parser.js'
-import type { StatementNode, TypeDeclarationNode } from '@axiomate/core'
+import type { StatementNode, TypeDeclarationNode } from '@axiomata/core'
 
 function parse(source: string) {
   const tokens = tokenizeLine(source, 0)

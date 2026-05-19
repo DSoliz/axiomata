@@ -10,7 +10,7 @@ import { initCommand } from './commands/init.js'
 
 program
   .name('axm')
-  .description('Axiomate knowledge base CLI')
+  .description('Axiomata knowledge base CLI')
   .version('0.1.0')
 
 program

@@ -17,10 +17,10 @@ importers:
 
   cli:
     dependencies:
-      '@axiomate/core':
+      '@axiomata/core':
         specifier: workspace:*
         version: link:../core
-      '@axiomate/parser':
+      '@axiomata/parser':
         specifier: workspace:*
         version: link:../parser
       commander:
@@ -42,10 +42,10 @@ importers:
 
   lsp:
     dependencies:
-      '@axiomate/core':
+      '@axiomata/core':
         specifier: workspace:*
         version: link:../core
-      '@axiomate/parser':
+      '@axiomata/parser':
         specifier: workspace:*
         version: link:../parser
       vscode-languageserver:
@@ -64,7 +64,7 @@ importers:
 
   parser:
     dependencies:
-      '@axiomate/core':
+      '@axiomata/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:

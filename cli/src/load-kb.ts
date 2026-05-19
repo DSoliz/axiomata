@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import type { AxmError, KnowledgeIndex, SourceFile } from '@axiomate/core'
-import { buildIndex, parseFile } from '@axiomate/parser'
+import type { AxmError, KnowledgeIndex, SourceFile } from '@axiomata/core'
+import { buildIndex, parseFile } from '@axiomata/parser'
 
 export interface KnowledgeBase {
   files: SourceFile[]

@@ -1,4 +1,4 @@
-import type { AxmError, SourceFile } from '@axiomate/core'
+import type { AxmError, SourceFile } from '@axiomata/core'
 import { tokenizeLine } from './tokenizer.js'
 import { parseLine } from './line-parser.js'
 

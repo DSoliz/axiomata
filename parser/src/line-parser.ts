@@ -1,4 +1,4 @@
-import type { AxmError, Declaration, StatementNode, TypeDeclarationNode } from '@axiomate/core'
+import type { AxmError, Declaration, StatementNode, TypeDeclarationNode } from '@axiomata/core'
 import type { Token } from './tokenizer.js'
 import { parseValue } from './value-parser.js'
 

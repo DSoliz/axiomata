@@ -1,6 +1,6 @@
 # Core
 
-Shared type definitions used across the Axiomate toolchain.
+Shared type definitions used across the Axiomata toolchain.
 
 Intended to be imported by `parser`, `lsp`, and `cli` so that AST nodes, index structures, and error types stay in sync across packages.
 

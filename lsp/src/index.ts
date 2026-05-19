@@ -19,8 +19,8 @@ import type {
   Location,
 } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { parseFile, buildIndex } from '@axiomate/parser';
-import type { SourceFile, AxmError, Range as AxmRange, ValueSegment, KnowledgeIndex } from '@axiomate/core';
+import { parseFile, buildIndex } from '@axiomata/parser';
+import type { SourceFile, AxmError, Range as AxmRange, ValueSegment, KnowledgeIndex } from '@axiomata/core';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -78,7 +78,7 @@ function toDiagnostic(error: AxmError, forUri: string): Diagnostic {
       break;
   }
 
-  return { range: axmToLsp(range), message, severity: DiagnosticSeverity.Error, source: 'axiomate' };
+  return { range: axmToLsp(range), message, severity: DiagnosticSeverity.Error, source: 'axiomata' };
 }
 
 function rebuildIndex() {

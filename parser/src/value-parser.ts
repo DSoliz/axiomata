@@ -1,4 +1,4 @@
-import type { AxmError, Range, ValueSegment } from '@axiomate/core'
+import type { AxmError, Range, ValueSegment } from '@axiomata/core'
 
 export function parseValue(
   raw: string,

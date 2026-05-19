@@ -1,4 +1,4 @@
-import type { AxmError, IndexedStatement, IndexedType, KnowledgeIndex, SourceFile } from '@axiomate/core'
+import type { AxmError, IndexedStatement, IndexedType, KnowledgeIndex, SourceFile } from '@axiomata/core'
 
 export function buildIndex(files: SourceFile[]): { index: KnowledgeIndex; errors: AxmError[] } {
   const types = new Map<string, IndexedType>()

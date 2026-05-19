@@ -1,6 +1,6 @@
 # CLI
 
-Command-line tool for working with Axiomate knowledge bases.
+Command-line tool for working with Axiomata knowledge bases.
 
 Depends on `parser` and `core`.
 

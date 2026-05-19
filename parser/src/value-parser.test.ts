@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseValue } from './value-parser.js'
-import type { Range } from '@axiomate/core'
+import type { Range } from '@axiomata/core'
 
 function r(line: number, start: number, end: number): Range {
   return { start: { line, character: start }, end: { line, character: end } }

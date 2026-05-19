@@ -1,4 +1,4 @@
-import type { AxmError, IndexedStatement, KnowledgeIndex } from '@axiomate/core'
+import type { AxmError, IndexedStatement, KnowledgeIndex } from '@axiomata/core'
 import { renderValue } from './search.js'
 
 // ── JSON serialization ────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import type { Range } from '@axiomate/core'
+import type { Range } from '@axiomata/core'
 
 export type TokenKind = 'Keyword' | 'Identifier' | 'QuotedString' | 'Comment' | 'Unknown'
 
