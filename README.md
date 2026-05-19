@@ -29,9 +29,26 @@ stmt:unknown  u2 "should the @fast-restaurant model apply to catering orders too
 
 ## Getting started
 
+**Requirements:** Node.js 18+, pnpm
+
 ```sh
+git clone https://github.com/DSoliz/axiomata
+cd axiomata
 pnpm install
 pnpm build
+```
+
+Then symlink the CLI globally:
+
+```sh
+chmod +x cli/dist/index.js
+ln -s $(pwd)/cli/dist/index.js /usr/local/bin/axm
+```
+
+Verify:
+
+```sh
+axm --version
 ```
 
 To start a new knowledge base in your project:
@@ -45,7 +62,7 @@ This creates `types.axm` with six recommended types: `decision`, `unknown`, `con
 ## CLI
 
 ```sh
-node cli/dist/index.js <command> [dir] [options]
+axm <command> [dir] [options]
 ```
 
 | Command | Description |
@@ -62,9 +79,9 @@ All commands accept `--json` for machine-readable output. `index`, `search`, and
 
 ```sh
 # Examples
-node cli/dist/index.js check ./my-kb
-node cli/dist/index.js search "authentication" ./my-kb --type decision --json
-node cli/dist/index.js add "we use JWT for auth" ./my-kb --type decision --id auth-jwt
+axm check ./my-kb
+axm search "authentication" ./my-kb --type decision --json
+axm add "we use JWT for auth" ./my-kb --type decision --id auth-jwt
 ```
 
 ## Editor setup (Helix)
