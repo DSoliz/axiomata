@@ -1,0 +1,18 @@
+# Helix editor language configuration for .axm files.
+# Copy the relevant sections into ~/.config/helix/languages.toml
+# (or merge with your existing file).
+#
+# Replace /path/to/axiomate with the absolute path to this repo.
+
+[[language]]
+name = "axm"
+scope = "source.axm"
+file-types = ["axm"]
+comment-token = "//"
+indent = { tab-width = 2, unit = "  " }
+roots = []
+language-servers = ["axiomate-lsp"]
+
+[language-server.axiomate-lsp]
+command = "node"
+args = ["/path/to/axiomate/lsp/dist/index.js"]
