@@ -1,1 +1,6 @@
-// tokenizer, AST builder, and two-pass index builder
+export { tokenizeLine } from './tokenizer.js'
+export type { Token, TokenKind } from './tokenizer.js'
+export { parseValue } from './value-parser.js'
+export { parseLine } from './line-parser.js'
+export { parseFile } from './parse-file.js'
+export { buildIndex } from './indexer.js'

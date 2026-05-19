@@ -3,3 +3,5 @@ packages:
   - 'parser'
   - 'lsp'
   - 'cli'
+allowBuilds:
+  esbuild: true

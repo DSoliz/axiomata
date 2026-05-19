@@ -6,7 +6,8 @@
     "rootDir": "./src"
   },
   "references": [
+    { "path": "../core" },
     { "path": "../parser" }
   ],
-  "include": ["src"]
+  "include": ["src/**/*.ts"]
 }

@@ -1,17 +1,13 @@
-// This is a comment
-
 // Every stmt is global by default
 
-// string can contain references to variables and stmnt
-// statments
-// stmt:[]type [variable name] [string]
-stmt:decision a1 "@fast-restaurant"
-stmt:decision a2 "because of @a1 the website"
-stmt:unknown u2 "should @fast-restaurant website"
+// stmt:[]type [id] [string value]
+stmt:decision a1 "we will only serve @fast-restaurant food"
+stmt:decision a2 "because of @a1 the website needs an order-ahead feature"
+stmt:unknown u2 "should the @fast-restaurant model apply to catering orders too"
 
-// statments can also be declared this way. When typed this way as soon as you type a `"` the lsp will generate a unique id and make a generic stmt
-"" df131 stmt
+// Statements can also be written value-first. When you type a `"` the LSP
+// generates a unique id and scaffolds the stmt keyword for you.
+"delivery is handled by a third party" df131 stmt:decision
 
-// later on the user can type : after stmnt the lsp will bring up the list of types
-"" df131 stmt:decision
-
+// You can then type : after stmt to pick a type from the list.
+"all menu items must be available within 10 minutes" df132 stmt:unknown
