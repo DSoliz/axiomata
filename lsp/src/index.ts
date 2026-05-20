@@ -17,6 +17,7 @@ import type {
   CompletionItem,
   ReferenceParams,
   Location,
+  DefinitionParams,
 } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { parseFile, buildIndex } from '@axiomata/parser';
@@ -26,11 +27,11 @@ import { join, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const connection = createConnection(ProposedFeatures.all, process.stdin, process.stdout);
-const documents = new TextDocuments(TextDocument);
+export const documents = new TextDocuments(TextDocument);
 
-const sourceFiles = new Map<string, SourceFile>();
+export const sourceFiles = new Map<string, SourceFile>();
 const parseErrorsByUri = new Map<string, AxmError[]>();
-let currentIndex: KnowledgeIndex = { types: new Map(), statements: new Map() };
+export let currentIndex: KnowledgeIndex = { types: new Map(), statements: new Map() };
 
 function axmToLsp(range: AxmRange) {
   return {
@@ -141,6 +142,7 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => ({
   capabilities: {
     textDocumentSync: TextDocumentSyncKind.Full,
     hoverProvider: true,
+    definitionProvider: true,
     referencesProvider: true,
     completionProvider: { triggerCharacters: [':', '@'] },
     workspace: { workspaceFolders: { supported: true } },
@@ -186,11 +188,11 @@ connection.onHover((params: HoverParams): Hover | null => {
   return null;
 });
 
-type ResolvedPosition =
+export type ResolvedPosition =
   | { kind: 'statement'; id: string }
   | { kind: 'type'; name: string }
 
-function resolveIdAtPosition(uri: string, pos: { line: number; character: number }): ResolvedPosition | null {
+export function resolveIdAtPosition(uri: string, pos: { line: number; character: number }): ResolvedPosition | null {
   const sourceFile = sourceFiles.get(uri);
   if (!sourceFile) return null;
 
@@ -201,6 +203,29 @@ function resolveIdAtPosition(uri: string, pos: { line: number; character: number
       const r = seg.range;
       if (r.start.line === pos.line && r.start.character <= pos.character && pos.character <= r.end.character) {
         return { kind: 'statement', id: seg.id };
+      }
+    }
+  }
+
+  // Check if cursor is over the type name in a `stmt:<type>` declaration.
+  // Must run before the statement/type loop below so the type token is matched first.
+  const doc = documents.get(uri);
+  if (doc) {
+    const hasStatementDecl = sourceFile.declarations.some(
+      decl => decl.kind === 'statement' && decl.range.start.line <= pos.line && pos.line <= decl.range.end.line
+    );
+    if (hasStatementDecl) {
+      const lineText = doc.getText({
+        start: { line: pos.line, character: 0 },
+        end: { line: pos.line, character: Number.MAX_SAFE_INTEGER },
+      });
+      const match = /stmt:([\w-]+)/.exec(lineText);
+      if (match) {
+        const startIdx = match.index + 'stmt:'.length;
+        const endIdx = startIdx + match[1].length;
+        if (pos.character >= startIdx && pos.character < endIdx) {
+          return { kind: 'type', name: match[1] };
+        }
       }
     }
   }
@@ -299,5 +324,28 @@ connection.onCompletion((params: CompletionParams): CompletionItem[] => {
   return [];
 });
 
-documents.listen(connection);
-connection.listen();
+export function handleDefinition(params: DefinitionParams): Location | null {
+  const resolved = resolveIdAtPosition(params.textDocument.uri, params.position);
+  if (!resolved) return null;
+
+  if (resolved.kind === 'statement') {
+    const stmt = currentIndex.statements.get(resolved.id);
+    if (stmt) {
+      return { uri: pathToFileURL(stmt.file).toString(), range: axmToLsp(stmt.range) };
+    }
+  } else if (resolved.kind === 'type') {
+    const type = currentIndex.types.get(resolved.name);
+    if (type) {
+      return { uri: pathToFileURL(type.file).toString(), range: axmToLsp(type.range) };
+    }
+  }
+
+  return null;
+}
+
+connection.onDefinition(handleDefinition);
+
+if (!process.env.VITEST) {
+  documents.listen(connection);
+  connection.listen();
+}
