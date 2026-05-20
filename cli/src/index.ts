@@ -6,6 +6,7 @@ import { queryCommand } from './commands/query.js'
 import { searchCommand } from './commands/search.js'
 import { addCommand } from './commands/add.js'
 import { refsCommand } from './commands/refs.js'
+import { renameCommand } from './commands/rename.js'
 import { initCommand } from './commands/init.js'
 
 program
@@ -60,5 +61,11 @@ program
   .description('List references to a statement ID, or statements of a type (default: current directory)')
   .option('--json', 'output as JSON')
   .action((id, dir = '.', opts) => refsCommand(id, dir, opts))
+
+program
+  .command('rename <old> <new> [dir]')
+  .description('Rename a statement ID or type name across all files (default: current directory)')
+  .option('--json', 'output as JSON')
+  .action((oldName, newName, dir = '.', opts) => renameCommand(oldName, newName, dir, opts))
 
 program.parse()

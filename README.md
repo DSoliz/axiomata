@@ -38,17 +38,25 @@ pnpm install
 pnpm build
 ```
 
-Then symlink the CLI globally:
+Ensure pnpm's global bin directory is on your PATH (only needed once, or after upgrading to pnpm v11+):
 
 ```sh
-chmod +x cli/dist/index.js
-ln -s $(pwd)/cli/dist/index.js /usr/local/bin/axm
+pnpm setup
+source ~/.zshrc   # or ~/.bashrc / ~/.config/fish/config.fish
+```
+
+Then install the CLI and LSP globally:
+
+```sh
+pnpm add -g ./cli
+pnpm add -g ./lsp
 ```
 
 Verify:
 
 ```sh
 axm --version
+axiomata-lsp --help
 ```
 
 To start a new knowledge base in your project:
@@ -74,6 +82,7 @@ axm <command> [dir] [options]
 | `search <query> [dir]` | Search by ID and value text |
 | `add <value> [dir]` | Append a new statement (unique ID guaranteed) |
 | `refs <id> [dir]` | List references to a statement ID, or statements of a type |
+| `rename <old> <new> [dir]` | Rename a statement ID or type across all files |
 
 All commands accept `--json` for machine-readable output. `index`, `search`, and `add` accept `--type <name>` to filter or tag by statement type.
 
@@ -82,6 +91,7 @@ All commands accept `--json` for machine-readable output. `index`, `search`, and
 axm check ./my-kb
 axm search "authentication" ./my-kb --type decision --json
 axm add "we use JWT for auth" ./my-kb --type decision --id auth-jwt
+axm rename auth-jwt jwt-decision ./my-kb
 ```
 
 ## Editor setup (Helix)
@@ -92,7 +102,7 @@ Copy `examples/helix-languages.toml` into `~/.config/helix/languages.toml` and r
 hx --grammar build
 ```
 
-The LSP provides diagnostics on save, hover on `@id` references, and completions after `stmt:` and `@`.
+The LSP provides diagnostics on save, hover on `@id` references, completions after `stmt:` and `@`, go-to-definition, find references, and rename symbol.
 
 ## Agent skill
 

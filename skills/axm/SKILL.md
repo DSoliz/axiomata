@@ -73,7 +73,13 @@ axm refs <id> . --json
 
 Run this before modifying a statement. If other statements reference it, re-evaluate whether they still hold — a change in one decision can invalidate or require updates to everything that depends on it.
 
-**8. Validate the KB:**
+**8. Rename a statement ID or type name across all files:**
+```
+axm rename <old> <new> . --json
+```
+Renames every occurrence — declaration and all references — atomically across the whole KB. Works with hyphenated identifiers (e.g. `fast-restaurant`). Returns `{ oldName, newName, kind, files, edits }`. Exits 1 if `<old>` is not found, `<new>` already exists, or `<new>` is not a valid identifier.
+
+**9. Validate the KB:**
 ```
 axm check . --json
 ```

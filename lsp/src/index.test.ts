@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { resolveIdAtPosition, handleDefinition, sourceFiles, currentIndex, documents } from './index.js'
+import { resolveIdAtPosition, handleDefinition, handlePrepareRename, handleRename, sourceFiles, currentIndex, documents } from './index.js'
 import type { SourceFile, IndexedType, IndexedStatement } from '@axiomata/core'
 
 describe('LSP Go to Definition', () => {
@@ -289,5 +289,167 @@ describe('Potential issue cases', () => {
     // would reject this call.
     expect(mockDoc.getText({ start: { line: 99, character: 0 }, end: { line: 99, character: 5 } }))
       .toBe('stmt:decision a1 "we will serve JWT"')
+  })
+})
+
+describe('Hyphenated symbol rename', () => {
+  // Hyphens are valid in axm identifiers but break editor word-boundary detection.
+  // Without prepareRename, an editor pre-fills only 'fast' or 'restaurant' instead
+  // of the full 'fast-restaurant'. These tests pin the correct behaviour.
+
+  const fileUri = 'file:///test/kb/simple.axm'
+
+  beforeEach(() => {
+    sourceFiles.clear()
+    currentIndex.types.clear()
+    currentIndex.statements.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('prepareRename on @fast-restaurant reference returns the full hyphenated id range', async () => {
+    // @fast-restaurant: '@' at char 28, id 'fast-restaurant' spans chars 29-43
+    const sourceFile: SourceFile = {
+      path: '/test/kb/simple.axm',
+      declarations: [
+        {
+          kind: 'statement',
+          statementType: 'decision',
+          id: 'a1',
+          value: [
+            { kind: 'text', value: 'because of ' },
+            {
+              kind: 'reference',
+              id: 'fast-restaurant',
+              range: { start: { line: 0, character: 28 }, end: { line: 0, character: 44 } },
+            },
+          ],
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 45 } },
+        },
+      ],
+    }
+    sourceFiles.set(fileUri, sourceFile)
+    currentIndex.statements.set('fast-restaurant', {
+      id: 'fast-restaurant',
+      statementType: 'domain-term',
+      value: [{ kind: 'text', value: 'a restaurant that serves fast food' }],
+      file: '/test/kb/simple.axm',
+      range: { start: { line: 1, character: 0 }, end: { line: 1, character: 60 } },
+    })
+
+    // Cursor inside '@fast-restaurant' — char 30 is inside 'fast-restaurant' (after '@')
+    const result = await handlePrepareRename({ textDocument: { uri: fileUri }, position: { line: 0, character: 30 } })
+
+    // range must cover the full 'fast-restaurant', not just 'fast' (which stops at '-')
+    expect(result).toEqual({
+      range: {
+        start: { line: 0, character: 29 }, // one past the '@'
+        end: { line: 0, character: 44 },
+      },
+      placeholder: 'fast-restaurant',
+    })
+  })
+
+  it('prepareRename on a hyphenated declaration id returns the full token range', async () => {
+    // 'stmt:domain-term fast-restaurant "..."' — the id token spans chars 16-31
+    const sourceFile: SourceFile = {
+      path: '/test/kb/simple.axm',
+      declarations: [
+        {
+          kind: 'statement',
+          statementType: 'domain-term',
+          id: 'fast-restaurant',
+          value: [{ kind: 'text', value: 'a restaurant that serves fast food' }],
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 60 } },
+        },
+      ],
+    }
+    sourceFiles.set(fileUri, sourceFile)
+    currentIndex.statements.set('fast-restaurant', {
+      id: 'fast-restaurant',
+      statementType: 'domain-term',
+      value: [{ kind: 'text', value: 'a restaurant that serves fast food' }],
+      file: '/test/kb/simple.axm',
+      range: { start: { line: 0, character: 0 }, end: { line: 0, character: 60 } },
+    })
+
+    vi.spyOn(documents, 'get').mockReturnValue({
+      getText: () => 'stmt:domain-term fast-restaurant "a restaurant that serves fast food"',
+    } as any)
+
+    // Cursor on 'restaurant' part of 'fast-restaurant' (char 22, inside 'fast-restaurant')
+    const result = await handlePrepareRename({ textDocument: { uri: fileUri }, position: { line: 0, character: 22 } })
+
+    // 'stmt:domain-term ' is 17 chars (0–16), so 'fast-restaurant' spans 17–32
+    expect(result).toEqual({
+      range: {
+        start: { line: 0, character: 17 },
+        end: { line: 0, character: 32 },
+      },
+      placeholder: 'fast-restaurant',
+    })
+  })
+
+  it('handleRename renames a hyphenated id across all references', async () => {
+    const sourceFile: SourceFile = {
+      path: '/test/kb/simple.axm',
+      declarations: [
+        {
+          kind: 'statement',
+          statementType: 'domain-term',
+          id: 'fast-restaurant',
+          value: [{ kind: 'text', value: 'a restaurant that serves fast food' }],
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 60 } },
+        },
+        {
+          kind: 'statement',
+          statementType: 'decision',
+          id: 'a1',
+          value: [
+            { kind: 'text', value: 'we only serve ' },
+            {
+              kind: 'reference',
+              id: 'fast-restaurant',
+              range: { start: { line: 1, character: 32 }, end: { line: 1, character: 48 } },
+            },
+          ],
+          range: { start: { line: 1, character: 0 }, end: { line: 1, character: 49 } },
+        },
+      ],
+    }
+    sourceFiles.set(fileUri, sourceFile)
+    currentIndex.statements.set('fast-restaurant', {
+      id: 'fast-restaurant',
+      statementType: 'domain-term',
+      value: [{ kind: 'text', value: 'a restaurant that serves fast food' }],
+      file: '/test/kb/simple.axm',
+      range: { start: { line: 0, character: 0 }, end: { line: 0, character: 60 } },
+    })
+
+    vi.spyOn(documents, 'get').mockReturnValue({
+      getText: () => 'stmt:domain-term fast-restaurant "a restaurant that serves fast food"',
+    } as any)
+
+    // Cursor on the declaration id 'fast-restaurant'
+    const result = await handleRename({
+      textDocument: { uri: fileUri },
+      position: { line: 0, character: 22 },
+      newName: 'quick-eats',
+    })
+
+    expect(result).not.toBeNull()
+    const changes = result!.changes![fileUri]
+    expect(changes).toHaveLength(2) // declaration + 1 reference
+
+    // Declaration edit: 'fast-restaurant' spans chars 17–32 on line 0
+    // ('stmt:domain-term ' is 17 chars, 'fast-restaurant' is 15 chars)
+    expect(changes).toContainEqual({
+      range: { start: { line: 0, character: 17 }, end: { line: 0, character: 32 } },
+      newText: 'quick-eats',
+    })
+    // Reference edit: '@fast-restaurant' → '@quick-eats' (starts at char 32, id at 33–48)
+    expect(changes).toContainEqual({
+      range: { start: { line: 1, character: 32 }, end: { line: 1, character: 48 } },
+      newText: '@quick-eats',
+    })
   })
 })

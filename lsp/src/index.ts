@@ -18,9 +18,13 @@ import type {
   ReferenceParams,
   Location,
   DefinitionParams,
+  RenameParams,
+  WorkspaceEdit,
+  TextEdit,
+  PrepareRenameParams,
 } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { parseFile, buildIndex } from '@axiomata/parser';
+import { parseFile, buildIndex, tokenizeLine } from '@axiomata/parser';
 import type { SourceFile, AxmError, Range as AxmRange, ValueSegment, KnowledgeIndex } from '@axiomata/core';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
@@ -144,6 +148,7 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => ({
     hoverProvider: true,
     definitionProvider: true,
     referencesProvider: true,
+    renameProvider: { prepareProvider: true },
     completionProvider: { triggerCharacters: [':', '@'] },
     workspace: { workspaceFolders: { supported: true } },
   },
@@ -344,6 +349,157 @@ export function handleDefinition(params: DefinitionParams): Location | null {
 }
 
 connection.onDefinition(handleDefinition);
+
+async function getLineText(uri: string, line: number): Promise<string> {
+  const doc = documents.get(uri);
+  if (doc) {
+    return doc.getText({ start: { line, character: 0 }, end: { line, character: Number.MAX_SAFE_INTEGER } });
+  }
+  const content = await readFile(fileURLToPath(uri), 'utf-8');
+  return content.split('\n')[line] ?? '';
+}
+
+export async function handlePrepareRename(
+  params: PrepareRenameParams,
+): Promise<{ range: ReturnType<typeof axmToLsp>; placeholder: string } | null> {
+  const resolved = resolveIdAtPosition(params.textDocument.uri, params.position);
+  if (!resolved) return null;
+
+  const uri = params.textDocument.uri;
+  const pos = params.position;
+  const sourceFile = sourceFiles.get(uri);
+
+  if (resolved.kind === 'statement') {
+    const { id } = resolved;
+
+    // Reference segment (@id) — the AST already has its exact range; skip the leading '@'
+    if (sourceFile) {
+      for (const decl of sourceFile.declarations) {
+        if (decl.kind !== 'statement') continue;
+        for (const seg of decl.value) {
+          if (seg.kind !== 'reference' || seg.id !== id) continue;
+          const r = seg.range;
+          if (r.start.line === pos.line && r.start.character <= pos.character && pos.character <= r.end.character) {
+            return {
+              range: axmToLsp({ start: { line: r.start.line, character: r.start.character + 1 }, end: r.end }),
+              placeholder: id,
+            };
+          }
+        }
+      }
+    }
+
+    // Declaration ID — tokenize the line to find the exact token bounds
+    const stmt = currentIndex.statements.get(id);
+    if (stmt) {
+      const stmtUri = pathToFileURL(stmt.file).toString();
+      const lineText = await getLineText(stmtUri, stmt.range.start.line);
+      const tok = tokenizeLine(lineText, stmt.range.start.line).find(t => t.kind === 'Identifier' && t.value === id);
+      if (tok) return { range: axmToLsp(tok.range), placeholder: id };
+    }
+  } else {
+    const { name } = resolved;
+
+    // stmt:name usage — return range of just the name part after 'stmt:'
+    if (sourceFile) {
+      for (const decl of sourceFile.declarations) {
+        if (decl.kind !== 'statement' || decl.statementType !== name) continue;
+        const r = decl.range;
+        if (r.start.line <= pos.line && pos.line <= r.end.line) {
+          const lineText = await getLineText(uri, decl.range.start.line);
+          const stmtTok = tokenizeLine(lineText, decl.range.start.line)
+            .find(t => t.kind === 'Keyword' && t.value === `stmt:${name}`);
+          if (stmtTok) {
+            return {
+              range: axmToLsp({
+                start: { line: decl.range.start.line, character: stmtTok.range.start.character + 'stmt:'.length },
+                end: stmtTok.range.end,
+              }),
+              placeholder: name,
+            };
+          }
+        }
+      }
+    }
+
+    // Type declaration name — tokenize to find the name identifier token
+    const type = currentIndex.types.get(name);
+    if (type) {
+      const typeUri = pathToFileURL(type.file).toString();
+      const lineText = await getLineText(typeUri, type.range.start.line);
+      const tok = tokenizeLine(lineText, type.range.start.line).find(t => t.kind === 'Identifier' && t.value === name);
+      if (tok) return { range: axmToLsp(tok.range), placeholder: name };
+    }
+  }
+
+  return null;
+}
+
+connection.onPrepareRename(handlePrepareRename);
+
+export async function handleRename(params: RenameParams): Promise<WorkspaceEdit | null> {
+  const resolved = resolveIdAtPosition(params.textDocument.uri, params.position);
+  if (!resolved) return null;
+
+  const { newName } = params;
+  const editsByUri = new Map<string, TextEdit[]>();
+
+  function addEdit(uri: string, range: AxmRange, newText: string) {
+    if (!editsByUri.has(uri)) editsByUri.set(uri, []);
+    editsByUri.get(uri)!.push({ range: axmToLsp(range), newText });
+  }
+
+  if (resolved.kind === 'statement') {
+    const { id } = resolved;
+
+    const stmt = currentIndex.statements.get(id);
+    if (stmt) {
+      const uri = pathToFileURL(stmt.file).toString();
+      const lineText = await getLineText(uri, stmt.range.start.line);
+      const tok = tokenizeLine(lineText, stmt.range.start.line).find(t => t.kind === 'Identifier' && t.value === id);
+      if (tok) addEdit(uri, tok.range, newName);
+    }
+
+    for (const [uri, file] of sourceFiles) {
+      for (const decl of file.declarations) {
+        if (decl.kind !== 'statement') continue;
+        for (const seg of decl.value) {
+          if (seg.kind === 'reference' && seg.id === id) {
+            addEdit(uri, seg.range, `@${newName}`);
+          }
+        }
+      }
+    }
+  } else {
+    const { name } = resolved;
+
+    const type = currentIndex.types.get(name);
+    if (type) {
+      const uri = pathToFileURL(type.file).toString();
+      const lineText = await getLineText(uri, type.range.start.line);
+      const tok = tokenizeLine(lineText, type.range.start.line).find(t => t.kind === 'Identifier' && t.value === name);
+      if (tok) addEdit(uri, tok.range, newName);
+    }
+
+    for (const [uri, file] of sourceFiles) {
+      for (const decl of file.declarations) {
+        if (decl.kind !== 'statement' || decl.statementType !== name) continue;
+        const lineText = await getLineText(uri, decl.range.start.line);
+        const stmtTok = tokenizeLine(lineText, decl.range.start.line).find(t => t.kind === 'Keyword' && t.value === `stmt:${name}`);
+        if (!stmtTok) continue;
+        const typeNameRange: AxmRange = {
+          start: { line: decl.range.start.line, character: stmtTok.range.start.character + 'stmt:'.length },
+          end: stmtTok.range.end,
+        };
+        addEdit(uri, typeNameRange, newName);
+      }
+    }
+  }
+
+  return { changes: Object.fromEntries(editsByUri) };
+}
+
+connection.onRenameRequest(handleRename);
 
 if (!process.env.VITEST) {
   documents.listen(connection);
