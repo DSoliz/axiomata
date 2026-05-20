@@ -1,3 +1,8 @@
+---
+name: axm
+description: Use the axm CLI to answer questions about this knowledge base.
+---
+
 Use the `axm` CLI to answer questions about this knowledge base: $ARGUMENTS
 
 ## Format reference

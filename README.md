@@ -94,9 +94,9 @@ hx --grammar build
 
 The LSP provides diagnostics on save, hover on `@id` references, and completions after `stmt:` and `@`.
 
-## Claude Code skill
+## Agent skill
 
-A `/axm` slash command is included at `.claude/commands/axm.md`. In any Claude Code session inside a KB directory, invoke it as:
+A `/axm` slash command is included at `.claude/skills/axm/SKILL.md` (which links to the repository's `skills/axm/SKILL.md`). In any Claude Code or Antigravity session inside a KB directory, invoke it as:
 
 ```
 /axm <question or task>
