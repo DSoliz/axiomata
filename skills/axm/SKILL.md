@@ -32,7 +32,7 @@ stmt         plain1 "untyped statement"
 ```
 axm init .
 ```
-Creates `types.axm` with six recommended types: `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`. Fails if `.axm` files already exist.
+Creates `types.axm` with seven recommended types: `goal`, `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`. Fails if `.axm` files already exist.
 
 **1. Check what types exist first:**
 ```

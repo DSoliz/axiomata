@@ -1,5 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { resolveIdAtPosition, handleDefinition, handlePrepareRename, handleRename, sourceFiles, currentIndex, documents } from './index.js'
+import { mkdtemp, rm, writeFile, unlink } from 'node:fs/promises'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
+import { FileChangeType } from 'vscode-languageserver/node.js'
+import { resolveIdAtPosition, handleDefinition, handlePrepareRename, handleRename, handleWatchedFileChange, sourceFiles, currentIndex, documents } from './index.js'
 import type { SourceFile, IndexedType, IndexedStatement } from '@axiomata/core'
 
 describe('LSP Go to Definition', () => {
@@ -451,5 +456,88 @@ describe('Hyphenated symbol rename', () => {
       range: { start: { line: 1, character: 32 }, end: { line: 1, character: 48 } },
       newText: '@quick-eats',
     })
+  })
+})
+
+describe('LSP watched-file change handling', () => {
+  let dir: string
+
+  beforeEach(async () => {
+    sourceFiles.clear()
+    currentIndex.types.clear()
+    currentIndex.statements.clear()
+    vi.restoreAllMocks()
+    dir = await mkdtemp(join(tmpdir(), 'axm-lsp-watch-'))
+  })
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  async function write(name: string, content: string): Promise<string> {
+    const path = join(dir, name)
+    await writeFile(path, content, 'utf-8')
+    return pathToFileURL(path).toString()
+  }
+
+  it('Created event reads the file from disk and indexes it', async () => {
+    const uri = await write('types.axm', 'type decision "a decision"')
+    const touched = await handleWatchedFileChange(uri, FileChangeType.Created)
+    expect(touched).toBe(true)
+    expect(sourceFiles.has(uri)).toBe(true)
+    expect(sourceFiles.get(uri)!.declarations).toHaveLength(1)
+  })
+
+  it('Changed event re-reads the file and replaces the prior parse', async () => {
+    const uri = await write('kb.axm', 'type decision "a decision"')
+    await handleWatchedFileChange(uri, FileChangeType.Created)
+    expect(sourceFiles.get(uri)!.declarations).toHaveLength(1)
+
+    await write('kb.axm', [
+      'type decision "a decision"',
+      'type unknown "an open question"',
+    ].join('\n'))
+    const touched = await handleWatchedFileChange(uri, FileChangeType.Changed)
+    expect(touched).toBe(true)
+    expect(sourceFiles.get(uri)!.declarations).toHaveLength(2)
+  })
+
+  it('Deleted event removes the file from the index', async () => {
+    const uri = await write('kb.axm', 'type decision "a decision"')
+    await handleWatchedFileChange(uri, FileChangeType.Created)
+    expect(sourceFiles.has(uri)).toBe(true)
+
+    await unlink(new URL(uri))
+    const touched = await handleWatchedFileChange(uri, FileChangeType.Deleted)
+    expect(touched).toBe(true)
+    expect(sourceFiles.has(uri)).toBe(false)
+  })
+
+  it('Deleted event for an unknown URI is a no-op', async () => {
+    const touched = await handleWatchedFileChange(
+      'file:///nonexistent/path.axm',
+      FileChangeType.Deleted,
+    )
+    expect(touched).toBe(false)
+  })
+
+  it('skips files currently open in the editor — those sync via textDocument/didChange', async () => {
+    const uri = await write('open.axm', 'type decision "a decision"')
+    vi.spyOn(documents, 'get').mockReturnValue({ uri } as any)
+
+    const touched = await handleWatchedFileChange(uri, FileChangeType.Changed)
+    expect(touched).toBe(false)
+    expect(sourceFiles.has(uri)).toBe(false)
+  })
+
+  it('treats a Changed event for a file that vanished mid-flight as a delete', async () => {
+    const uri = await write('racing.axm', 'type decision "a decision"')
+    await handleWatchedFileChange(uri, FileChangeType.Created)
+    expect(sourceFiles.has(uri)).toBe(true)
+
+    await unlink(new URL(uri))
+    const touched = await handleWatchedFileChange(uri, FileChangeType.Changed)
+    expect(touched).toBe(true)
+    expect(sourceFiles.has(uri)).toBe(false)
   })
 })

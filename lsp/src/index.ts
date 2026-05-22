@@ -6,6 +6,8 @@ import {
   DiagnosticSeverity,
   MarkupKind,
   CompletionItemKind,
+  DidChangeWatchedFilesNotification,
+  FileChangeType,
 } from 'vscode-languageserver/node.js';
 import type {
   InitializeParams,
@@ -29,6 +31,8 @@ import type { SourceFile, AxmError, Range as AxmRange, ValueSegment, KnowledgeIn
 import { readdir, readFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import chokidar from 'chokidar';
+import type { FSWatcher } from 'chokidar';
 
 const connection = createConnection(ProposedFeatures.all, process.stdin, process.stdout);
 export const documents = new TextDocuments(TextDocument);
@@ -124,6 +128,39 @@ function indexDocument(uri: string, content: string) {
   parseErrorsByUri.set(uri, errors);
 }
 
+function removeFromIndex(uri: string) {
+  sourceFiles.delete(uri);
+  parseErrorsByUri.delete(uri);
+  connection.sendDiagnostics({ uri, diagnostics: [] });
+}
+
+/**
+ * Apply a single workspace/didChangeWatchedFiles event to the index.
+ * Returns true if the index changed (caller should rebuildIndex).
+ * Files currently open in the editor are skipped — those sync via textDocument/didChange.
+ */
+export async function handleWatchedFileChange(uri: string, type: FileChangeType): Promise<boolean> {
+  if (documents.get(uri)) return false;
+
+  if (type === FileChangeType.Deleted) {
+    if (!sourceFiles.has(uri)) return false;
+    removeFromIndex(uri);
+    return true;
+  }
+
+  try {
+    const content = await readFile(fileURLToPath(uri), 'utf-8');
+    indexDocument(uri, content);
+    return true;
+  } catch {
+    if (sourceFiles.has(uri)) {
+      removeFromIndex(uri);
+      return true;
+    }
+    return false;
+  }
+}
+
 async function scanWorkspace(folderUri: string) {
   const folderPath = fileURLToPath(folderUri);
   try {
@@ -154,12 +191,57 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => ({
   },
 }));
 
+const fsWatchers: FSWatcher[] = [];
+
+function startFsWatcher(folderPath: string): FSWatcher {
+  const watcher = chokidar.watch('**/*.axm', {
+    cwd: folderPath,
+    ignored: ['**/node_modules/**', '**/.git/**'],
+    ignoreInitial: true,
+    awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
+  });
+
+  const dispatch = (type: FileChangeType) => async (relPath: string) => {
+    const uri = pathToFileURL(join(folderPath, relPath)).toString();
+    if (await handleWatchedFileChange(uri, type)) rebuildIndex();
+  };
+
+  watcher.on('add', dispatch(FileChangeType.Created));
+  watcher.on('change', dispatch(FileChangeType.Changed));
+  watcher.on('unlink', dispatch(FileChangeType.Deleted));
+  return watcher;
+}
+
 connection.onInitialized(async () => {
   const folders = await connection.workspace.getWorkspaceFolders();
   if (folders?.length) {
     await Promise.all(folders.map(f => scanWorkspace(f.uri)));
     rebuildIndex();
+    for (const folder of folders) {
+      fsWatchers.push(startFsWatcher(fileURLToPath(folder.uri)));
+    }
   }
+  // Supplementary signal — works when the client honours it (e.g. VS Code).
+  // Helix advertises support but only fires for open buffers, which is why we also
+  // run our own chokidar watcher above. Files open in the editor are skipped by
+  // handleWatchedFileChange to avoid racing the textDocument/didChange path.
+  try {
+    await connection.client.register(DidChangeWatchedFilesNotification.type, {
+      watchers: [{ globPattern: '**/*.axm' }],
+    });
+  } catch {
+    // Client doesn't support dynamic registration — non-fatal, chokidar covers us.
+  }
+});
+
+connection.onDidChangeWatchedFiles(async ({ changes }) => {
+  const results = await Promise.all(changes.map(c => handleWatchedFileChange(c.uri, c.type)));
+  if (results.some(Boolean)) rebuildIndex();
+});
+
+connection.onShutdown(async () => {
+  await Promise.all(fsWatchers.map(w => w.close()));
+  fsWatchers.length = 0;
 });
 
 documents.onDidChangeContent(change => {

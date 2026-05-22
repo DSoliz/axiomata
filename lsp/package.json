@@ -13,6 +13,7 @@
   "dependencies": {
     "@axiomata/core": "workspace:*",
     "@axiomata/parser": "workspace:*",
+    "chokidar": "^3.6.0",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
   },

@@ -5,6 +5,7 @@ const TEMPLATE = `\
 // Knowledge base — created by axm init
 // Add statements below using: axm add "<value>" --type <type>
 
+type goal        "an outcome the project is trying to achieve"
 type decision    "a recorded architectural or product decision"
 type unknown     "an open question or unresolved matter"
 type constraint  "a non-negotiable limit that shapes decisions"
@@ -32,9 +33,9 @@ export async function initCommand(dir = '.', opts: { json?: boolean } = {}): Pro
   await writeFile(filePath, TEMPLATE, 'utf-8')
 
   if (opts.json) {
-    console.log(JSON.stringify({ file: filePath, types: ['decision', 'unknown', 'constraint', 'assumption', 'principle', 'domain-term'] }, null, 2))
+    console.log(JSON.stringify({ file: filePath, types: ['goal', 'decision', 'unknown', 'constraint', 'assumption', 'principle', 'domain-term'] }, null, 2))
   } else {
     console.log(`created: ${filePath}`)
-    console.log('types:   decision, unknown, constraint, assumption, principle, domain-term')
+    console.log('types:   goal, decision, unknown, constraint, assumption, principle, domain-term')
   }
 }

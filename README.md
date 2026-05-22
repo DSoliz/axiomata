@@ -6,13 +6,15 @@ A plain-text format for decision knowledge bases. Store architectural decisions,
 
 ```axm
 // Declare named statement types
-type decision "a recorded architectural or product decision"
-type unknown  "an open question or unresolved matter"
+type decision    "a recorded architectural or product decision"
+type unknown     "an open question or unresolved matter"
+type domain-term "a named concept in the shared vocabulary"
 
 // Statements: stmt[:type] <id> "<value>"
-stmt:decision a1 "we will only serve @fast-restaurant food"
-stmt:decision a2 "because of @a1 the website needs an order-ahead feature"
-stmt:unknown  u2 "should the @fast-restaurant model apply to catering orders too"
+stmt:domain-term tenant "an isolated customer account with its own data and settings"
+stmt:decision    pg-jsonb "we store per-@tenant settings in a single jsonb column rather than separate tables"
+stmt:decision    app-level-encryption "because of @pg-jsonb we encrypt sensitive @tenant fields at the application layer"
+stmt:unknown     jsonb-evolution "how do we evolve the @pg-jsonb schema once @tenant data is in production"
 ```
 
 `@id` references link statements. The entire knowledge base is a flat namespace across all `.axm` files in a directory — no imports needed.
@@ -80,7 +82,7 @@ To start a new knowledge base in your project:
 axm init ./docs/kb
 ```
 
-This creates `types.axm` with six recommended types: `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`.
+This creates `types.axm` with seven recommended types: `goal`, `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`.
 
 ## CLI
 
@@ -115,7 +117,26 @@ The LSP (`axiomata-lsp`) speaks standard Language Server Protocol over stdio, so
 
 ### Helix
 
-1. Merge `examples/helix-languages.toml` into `~/.config/helix/languages.toml`, replacing `/path/to/axiomata` with the absolute path to this repo.
+1. Add the following to `~/.config/helix/languages.toml`, replacing `/path/to/axiomata` with the absolute path to this repo. Assumes `axiomata-lsp` is on `PATH` (step 5 in [Install at a glance](#getting-started)):
+
+   ```toml
+   [[language]]
+   name = "axm"
+   scope = "source.axm"
+   file-types = ["axm"]
+   comment-token = "//"
+   indent = { tab-width = 2, unit = "  " }
+   roots = []
+   language-servers = ["axiomata-lsp"]
+
+   [[grammar]]
+   name = "axm"
+   source = { path = "/path/to/axiomata/tree-sitter-axm" }
+
+   [language-server.axiomata-lsp]
+   command = "axiomata-lsp"
+   ```
+
 2. Build the tree-sitter grammar:
 
    ```sh
@@ -129,7 +150,7 @@ The LSP (`axiomata-lsp`) speaks standard Language Server Protocol over stdio, so
    cp tree-sitter-axm/queries/highlights.scm ~/.config/helix/runtime/queries/axm/
    ```
 
-Open any `.axm` file to verify highlighting. The LSP provides diagnostics on save, hover on `@id` references, completions after `stmt:` and `@`, go-to-definition, find references, and rename symbol.
+Open any `.axm` file to verify highlighting. The LSP provides diagnostics on save, hover on `@id` references, completions after `stmt:` and `@`, go-to-definition, find references, and rename symbol. Cross-file changes from outside the editor (`axm add`, `axm rename`, git checkouts, agent writes) flow into open buffers automatically — no manual reload needed.
 
 ## Agent skill
 
@@ -137,4 +158,41 @@ A `/axm` slash command is included at `.claude/skills/axm/SKILL.md` (which links
 
 ```
 /axm <question or task>
+```
+
+## Development
+
+Working on the CLI, LSP, or grammar itself.
+
+**Build and test:**
+
+```sh
+pnpm build      # Turbo-cached per-package build
+pnpm test       # Vitest, suites live next to source as *.test.ts
+```
+
+**Fast iteration on the CLI** — skip the global reinstall by running the local build directly:
+
+```sh
+node ./cli/dist/index.js <command> [args]
+# Or set a shell alias:
+alias axm-dev='node /abs/path/to/axiomata/cli/dist/index.js'
+```
+
+`pnpm add -g ./cli` *copies* the package into pnpm's global store — every code change otherwise needs a rebuild plus a reinstall to update the global `axm` binary.
+
+**Fast iteration on the LSP** — point your editor at the local build so only the editor's `:lsp-restart` is needed between edits:
+
+```toml
+[language-server.axiomata-lsp]
+command = "node"
+args = ["/abs/path/to/axiomata/lsp/dist/index.js"]
+```
+
+After each `pnpm build`, run `:lsp-restart` (Helix) or your editor's equivalent to pick up the new server. Same global-install caveat as the CLI applies — `pnpm add -g ./lsp` copies, so the global binary is stale until you reinstall.
+
+**Before shipping**, verify the install path still works end-to-end:
+
+```sh
+pnpm add -g ./cli ./lsp
 ```

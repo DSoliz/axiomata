@@ -1,6 +1,7 @@
 // Knowledge base — created by axm init
 // Add statements below using: axm add "<value>" --type <type>
 
+type goal        "an outcome the project is trying to achieve"
 type decision    "a recorded architectural or product decision"
 type unknown     "an open question or unresolved matter"
 type constraint  "a non-negotiable limit that shapes decisions"

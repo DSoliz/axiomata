@@ -1,3 +1,0 @@
-type domain-term "a named concept that is part of the domain vocabulary"
-type decision "a recorded architectural or product decision"
-type unknown "an open question or unresolved matter"
