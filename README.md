@@ -40,6 +40,7 @@ stmt:unknown  u2 "should the @fast-restaurant model apply to catering orders too
 5. Install CLI + LSP globally: `pnpm add -g ./cli ./lsp` → provides the `axm` CLI and `axiomata-lsp` server
 6. (Optional) configure your editor for syntax highlighting and LSP — see [Editor setup](#editor-setup) below
 7. Scaffold a knowledge base: `axm init ./docs/kb`
+8. (Optional) link the `/axm` agent skill so Claude Code / Antigravity sessions can query the KB — see [Agent skill](#agent-skill) below
 
 Detail for each step follows.
 
