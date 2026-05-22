@@ -1,8 +1,8 @@
 # Helix editor language configuration for .axm files.
-# Copy the relevant sections into ~/.config/helix/languages.toml
-# (or merge with your existing file).
+# Merge the relevant sections into ~/.config/helix/languages.toml.
 #
 # Replace /path/to/axiomata with the absolute path to this repo.
+# Assumes you have run `pnpm add -g ./lsp` so `axiomata-lsp` is on PATH.
 
 [[language]]
 name = "axm"
@@ -13,6 +13,9 @@ indent = { tab-width = 2, unit = "  " }
 roots = []
 language-servers = ["axiomata-lsp"]
 
+[[grammar]]
+name = "axm"
+source = { path = "/path/to/axiomata/tree-sitter-axm" }
+
 [language-server.axiomata-lsp]
-command = "node"
-args = ["/path/to/axiomata/lsp/dist/index.js"]
+command = "axiomata-lsp"

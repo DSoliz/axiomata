@@ -29,7 +29,19 @@ stmt:unknown  u2 "should the @fast-restaurant model apply to catering orders too
 
 ## Getting started
 
-**Requirements:** Node.js 18+, pnpm
+**Requirements:** Node.js 20.1+ (for `fs.readdir` `recursive` option), pnpm
+
+**Install at a glance:**
+
+1. Clone: `git clone https://github.com/DSoliz/axiomata && cd axiomata`
+2. Install dependencies: `pnpm install`
+3. Build all packages: `pnpm build`
+4. One-time pnpm global bin setup: `pnpm setup` (then start a fresh shell — see note below)
+5. Install CLI + LSP globally: `pnpm add -g ./cli ./lsp` → provides the `axm` CLI and `axiomata-lsp` server
+6. (Optional) configure your editor for syntax highlighting and LSP — see [Editor setup](#editor-setup) below
+7. Scaffold a knowledge base: `axm init ./docs/kb`
+
+Detail for each step follows.
 
 ```sh
 git clone https://github.com/DSoliz/axiomata
@@ -44,6 +56,8 @@ Ensure pnpm's global bin directory is on your PATH (only needed once, or after u
 pnpm setup
 source ~/.zshrc   # or ~/.bashrc / ~/.config/fish/config.fish
 ```
+
+> **Running this inside an AI coding agent (Claude Code, etc.)?** `pnpm setup` only edits your shell rc file — the agent's subshell was forked before that change and won't pick it up, even after `source`. Exit the agent, open a fresh terminal, run `pnpm setup`, then start the agent again before continuing with `pnpm add -g`.
 
 Then install the CLI and LSP globally:
 
@@ -94,15 +108,27 @@ axm add "we use JWT for auth" ./my-kb --type decision --id auth-jwt
 axm rename auth-jwt jwt-decision ./my-kb
 ```
 
-## Editor setup (Helix)
+## Editor setup
 
-Copy `examples/helix-languages.toml` into `~/.config/helix/languages.toml` and replace `/path/to/axiomata` with the path to this repo. Then build the grammar:
+The LSP (`axiomata-lsp`) speaks standard Language Server Protocol over stdio, so any LSP-capable editor can use it. Point your editor at the `axiomata-lsp` command and associate it with the `axm` file type.
 
-```sh
-hx --grammar build
-```
+### Helix
 
-The LSP provides diagnostics on save, hover on `@id` references, completions after `stmt:` and `@`, go-to-definition, find references, and rename symbol.
+1. Merge `examples/helix-languages.toml` into `~/.config/helix/languages.toml`, replacing `/path/to/axiomata` with the absolute path to this repo.
+2. Build the tree-sitter grammar:
+
+   ```sh
+   hx --grammar build
+   ```
+
+3. Install the highlight queries (Helix does not copy these automatically):
+
+   ```sh
+   mkdir -p ~/.config/helix/runtime/queries/axm
+   cp tree-sitter-axm/queries/highlights.scm ~/.config/helix/runtime/queries/axm/
+   ```
+
+Open any `.axm` file to verify highlighting. The LSP provides diagnostics on save, hover on `@id` references, completions after `stmt:` and `@`, go-to-definition, find references, and rename symbol.
 
 ## Agent skill
 

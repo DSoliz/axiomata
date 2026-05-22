@@ -1,0 +1,11 @@
+// Knowledge base — created by axm init
+// Add statements below using: axm add "<value>" --type <type>
+
+type decision    "a recorded architectural or product decision"
+type unknown     "an open question or unresolved matter"
+type constraint  "a non-negotiable limit that shapes decisions"
+type assumption  "something treated as true but not yet verified"
+type principle   "a guiding rule that keeps future decisions consistent"
+type domain-term "a named concept in the shared vocabulary"
+type component   "a named structural unit — package, module, or notable file"
+type invariant   "a property the system is expected to maintain"
