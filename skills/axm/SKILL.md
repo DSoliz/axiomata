@@ -15,16 +15,16 @@ type decision "a recorded architectural or product decision"
 type unknown  "an open question or unresolved matter"
 type domain-term "a named concept in the domain vocabulary"
 
-// stmt[:type] <id> "<value>"
-stmt:decision a1 "we will only serve @fast-restaurant food"
-stmt:decision a2 "because of @a1 the website needs an order-ahead feature"
-stmt:unknown  u2 "should the @fast-restaurant model apply to catering orders too"
-stmt         plain1 "untyped statement"
+// [type] <id> "<value>"
+decision a1 "we will only serve @fast-restaurant food"
+decision a2 "because of @a1 the website needs an order-ahead feature"
+unknown  u2 "should the @fast-restaurant model apply to catering orders too"
+plain1 "untyped statement"
 ```
 
 - `@id` references link statements inline
 - All files in a directory share one flat namespace — no imports
-- Statements can also be written value-first: `"value" <id> stmt[:type]`
+- `type` is the only reserved keyword — it cannot be used as a type name or statement id
 
 ## Workflow
 

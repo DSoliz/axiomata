@@ -3,15 +3,13 @@
 
 ; Keywords
 "type" @keyword
-"stmt" @keyword
-":" @punctuation.delimiter
 
 ; Type declarations — name and description
 (type_declaration name: (identifier) @type.definition)
 (type_declaration description: (string) @string)
 
-; stmt type annotation (e.g. the `decision` in `stmt:decision`)
-(stmt_keyword type: (identifier) @type)
+; Type annotation on a typed statement (first identifier field)
+(statement type: (identifier) @type)
 
 ; Statement id
 (statement id: (identifier) @variable.definition)

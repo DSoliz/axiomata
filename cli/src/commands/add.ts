@@ -58,8 +58,7 @@ export async function addCommand(
   }
 
   const targetFile = await resolveTargetFile(dir, opts.file)
-  const typePart = opts.type ? `:${opts.type}` : ''
-  const line = `stmt${typePart} ${id} "${escapeValue(value)}"`
+  const line = opts.type ? `${opts.type} ${id} "${escapeValue(value)}"` : `${id} "${escapeValue(value)}"`
 
   // Append with a leading newline only if the file doesn't already end with one
   const existing = await readFile(targetFile, 'utf-8')

@@ -7,11 +7,11 @@ const TYPES = `type domain-term "a domain term"
 type decision "a decision"
 type unknown "an unknown"`
 
-const DOMAIN = `stmt:domain-term fast-restaurant "a restaurant which has no dine-in"`
+const DOMAIN = `domain-term fast-restaurant "a restaurant which has no dine-in"`
 
-const SIMPLE = `stmt:decision a1 "@fast-restaurant"
-stmt:decision a2 "because of @a1 the website"
-stmt:unknown u2 "should @fast-restaurant website"`
+const SIMPLE = `decision a1 "@fast-restaurant"
+decision a2 "because of @a1 the website"
+unknown u2 "should @fast-restaurant website"`
 
 function files(...sources: Array<[string, string]>): SourceFile[] {
   return sources.map(([src, path]) => parseFile(src, path).file)
@@ -62,8 +62,8 @@ describe('buildIndex', () => {
   it('reports DuplicateId for the same id in two files', () => {
     const { errors } = buildIndex(files(
       [TYPES, 'types.axm'],
-      ['stmt:decision a1 "first"', 'f1.axm'],
-      ['stmt:decision a1 "second"', 'f2.axm'],
+      ['decision a1 "first"', 'f1.axm'],
+      ['decision a1 "second"', 'f2.axm'],
     ))
     const err = errors.find(e => e.code === 'DuplicateId')
     expect(err).toBeDefined()
@@ -75,7 +75,7 @@ describe('buildIndex', () => {
   it('reports DuplicateId for the same id within the same file', () => {
     const { errors } = buildIndex(files(
       [TYPES, 'types.axm'],
-      ['stmt:decision a1 "first"\nstmt:decision a1 "second"', 'test.axm'],
+      ['decision a1 "first"\ndecision a1 "second"', 'test.axm'],
     ))
     expect(errors.some(e => e.code === 'DuplicateId')).toBe(true)
   })
@@ -93,7 +93,7 @@ describe('buildIndex', () => {
   })
 
   it('reports UnknownType when a stmt references an undeclared type', () => {
-    const { errors } = buildIndex(files(['stmt:nonexistent a1 "val"', 'test.axm']))
+    const { errors } = buildIndex(files(['nonexistent a1 "val"', 'test.axm']))
     const err = errors.find(e => e.code === 'UnknownType')
     expect(err).toBeDefined()
     expect((err as any).name).toBe('nonexistent')
@@ -102,7 +102,7 @@ describe('buildIndex', () => {
   it('reports UnresolvedReference for an @id that is not in the index', () => {
     const { errors } = buildIndex(files(
       [TYPES, 'types.axm'],
-      ['stmt:decision a1 "@doesnotexist"', 'test.axm'],
+      ['decision a1 "@doesnotexist"', 'test.axm'],
     ))
     const err = errors.find(e => e.code === 'UnresolvedReference')
     expect(err).toBeDefined()

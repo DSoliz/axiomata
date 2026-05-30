@@ -110,11 +110,10 @@ export async function renameCommand(
       for (const decl of file.declarations) {
         if (decl.kind !== 'statement' || decl.statementType !== oldName) continue
         const lines = await getLines(file.path)
-        const stmtTok = tokenizeLine(lines[decl.range.start.line] ?? '', decl.range.start.line)
-          .find(t => t.kind === 'Keyword' && t.value === `stmt:${oldName}`)
-        if (!stmtTok) continue
-        const nameStart = stmtTok.range.start.character + 'stmt:'.length
-        addEdit(file.path, decl.range.start.line, nameStart, stmtTok.range.end.character, newName)
+        const typeTok = tokenizeLine(lines[decl.range.start.line] ?? '', decl.range.start.line)
+          .find(t => t.kind === 'Identifier' && t.value === oldName)
+        if (!typeTok) continue
+        addEdit(file.path, decl.range.start.line, typeTok.range.start.character, typeTok.range.end.character, newName)
       }
     }
   }

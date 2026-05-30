@@ -17,12 +17,8 @@ export function parseLine(
     return parseTypeDecl(meaningful, file)
   }
 
-  if (first.kind === 'Keyword' && first.value.startsWith('stmt')) {
-    return parseCanonical(meaningful, file)
-  }
-
-  if (first.kind === 'QuotedString') {
-    return parseLspForm(meaningful, file)
+  if (first.kind === 'Identifier') {
+    return parseStatement(meaningful, file)
   }
 
   return {
@@ -51,54 +47,38 @@ function parseTypeDecl(tokens: Token[], file: string): { declaration: Declaratio
   return { declaration: node, errors: [] }
 }
 
-function parseCanonical(tokens: Token[], file: string): { declaration: Declaration | null; errors: AxmError[] } {
-  const stmtToken = tokens[0]
-  const statementType = stmtToken.value === 'stmt' ? null : stmtToken.value.slice(5)
+function parseStatement(tokens: Token[], file: string): { declaration: Declaration | null; errors: AxmError[] } {
+  // typed:   <type> <id> "<value>"
+  // untyped: <id> "<value>"
+  const isTyped = tokens[1]?.kind === 'Identifier' && tokens[2]?.kind === 'QuotedString'
+  const isUntyped = tokens[1]?.kind === 'QuotedString'
 
-  if (tokens.length < 3 || tokens[1].kind !== 'Identifier' || tokens[2].kind !== 'QuotedString') {
-    return {
-      declaration: null,
-      errors: [{ code: 'ParseError', message: 'expected: stmt[:<type>] <id> "<value>"', file, range: stmtToken.range }],
+  if (isTyped) {
+    const { segments, errors } = parseValue(tokens[2].value, tokens[2].range, file)
+    const node: StatementNode = {
+      kind: 'statement',
+      statementType: tokens[0].value,
+      id: tokens[1].value,
+      value: segments,
+      range: { start: tokens[0].range.start, end: tokens[2].range.end },
     }
+    return { declaration: node, errors }
   }
 
-  const { segments, errors } = parseValue(tokens[2].value, tokens[2].range, file)
-  const node: StatementNode = {
-    kind: 'statement',
-    statementType,
-    id: tokens[1].value,
-    value: segments,
-    range: { start: stmtToken.range.start, end: tokens[2].range.end },
-  }
-  return { declaration: node, errors }
-}
-
-function parseLspForm(tokens: Token[], file: string): { declaration: Declaration | null; errors: AxmError[] } {
-  const valueToken = tokens[0]
-
-  if (tokens[1]?.kind !== 'Identifier') {
-    return {
-      declaration: null,
-      errors: [{ code: 'ParseError', message: 'expected: "<value>" <id> stmt[:<type>]', file, range: valueToken.range }],
+  if (isUntyped) {
+    const { segments, errors } = parseValue(tokens[1].value, tokens[1].range, file)
+    const node: StatementNode = {
+      kind: 'statement',
+      statementType: null,
+      id: tokens[0].value,
+      value: segments,
+      range: { start: tokens[0].range.start, end: tokens[1].range.end },
     }
+    return { declaration: node, errors }
   }
 
-  const stmtToken = tokens[2]
-  if (stmtToken?.kind !== 'Keyword' || !stmtToken.value.startsWith('stmt')) {
-    return {
-      declaration: null,
-      errors: [{ code: 'ParseError', message: "expected 'stmt' or 'stmt:<type>' after id", file, range: tokens[1].range }],
-    }
+  return {
+    declaration: null,
+    errors: [{ code: 'ParseError', message: 'expected: [<type>] <id> "<value>"', file, range: tokens[0].range }],
   }
-
-  const statementType = stmtToken.value === 'stmt' ? null : stmtToken.value.slice(5)
-  const { segments, errors } = parseValue(valueToken.value, valueToken.range, file)
-  const node: StatementNode = {
-    kind: 'statement',
-    statementType,
-    id: tokens[1].value,
-    value: segments,
-    range: { start: valueToken.range.start, end: stmtToken.range.end },
-  }
-  return { declaration: node, errors }
 }

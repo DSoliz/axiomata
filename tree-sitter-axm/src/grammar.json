@@ -83,10 +83,10 @@
           "members": [
             {
               "type": "FIELD",
-              "name": "stmt_kw",
+              "name": "type",
               "content": {
                 "type": "SYMBOL",
-                "name": "stmt_keyword"
+                "name": "identifier"
               }
             },
             {
@@ -112,14 +112,6 @@
           "members": [
             {
               "type": "FIELD",
-              "name": "value",
-              "content": {
-                "type": "SYMBOL",
-                "name": "string"
-              }
-            },
-            {
-              "type": "FIELD",
               "name": "id",
               "content": {
                 "type": "SYMBOL",
@@ -128,45 +120,11 @@
             },
             {
               "type": "FIELD",
-              "name": "stmt_kw",
+              "name": "value",
               "content": {
                 "type": "SYMBOL",
-                "name": "stmt_keyword"
+                "name": "string"
               }
-            }
-          ]
-        }
-      ]
-    },
-    "stmt_keyword": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "stmt"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": ":"
-                },
-                {
-                  "type": "FIELD",
-                  "name": "type",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "identifier"
-                  }
-                }
-              ]
-            },
-            {
-              "type": "BLANK"
             }
           ]
         }

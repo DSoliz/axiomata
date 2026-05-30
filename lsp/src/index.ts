@@ -294,7 +294,7 @@ export function resolveIdAtPosition(uri: string, pos: { line: number; character:
     }
   }
 
-  // Check if cursor is over the type name in a `stmt:<type>` declaration.
+  // Check if cursor is over the type name (first identifier) of a typed statement.
   // Must run before the statement/type loop below so the type token is matched first.
   const doc = documents.get(uri);
   if (doc) {
@@ -306,12 +306,12 @@ export function resolveIdAtPosition(uri: string, pos: { line: number; character:
         start: { line: pos.line, character: 0 },
         end: { line: pos.line, character: Number.MAX_SAFE_INTEGER },
       });
-      const match = /stmt:([\w-]+)/.exec(lineText);
-      if (match) {
-        const startIdx = match.index + 'stmt:'.length;
-        const endIdx = startIdx + match[1].length;
-        if (pos.character >= startIdx && pos.character < endIdx) {
-          return { kind: 'type', name: match[1] };
+      const lineTokens = tokenizeLine(lineText, pos.line).filter(t => t.kind !== 'Comment');
+      // Typed statement: Identifier Identifier QuotedString — first identifier is the type
+      if (lineTokens[0]?.kind === 'Identifier' && lineTokens[1]?.kind === 'Identifier' && lineTokens[2]?.kind === 'QuotedString') {
+        const typeTok = lineTokens[0];
+        if (typeTok.range.start.character <= pos.character && pos.character <= typeTok.range.end.character) {
+          return { kind: 'type', name: typeTok.value };
         }
       }
     }
@@ -391,7 +391,7 @@ connection.onCompletion((params: CompletionParams): CompletionItem[] => {
     end: params.position,
   });
 
-  if (/\bstmt:[\w-]*$/.test(lineUpToCursor)) {
+  if (/^[\w-]*$/.test(lineUpToCursor)) {
     return [...currentIndex.types.values()].map(t => ({
       label: t.name,
       kind: CompletionItemKind.EnumMember,
@@ -482,23 +482,17 @@ export async function handlePrepareRename(
   } else {
     const { name } = resolved;
 
-    // stmt:name usage — return range of just the name part after 'stmt:'
+    // type-name usage — find the type identifier (first token) on a typed statement line
     if (sourceFile) {
       for (const decl of sourceFile.declarations) {
         if (decl.kind !== 'statement' || decl.statementType !== name) continue;
         const r = decl.range;
         if (r.start.line <= pos.line && pos.line <= r.end.line) {
           const lineText = await getLineText(uri, decl.range.start.line);
-          const stmtTok = tokenizeLine(lineText, decl.range.start.line)
-            .find(t => t.kind === 'Keyword' && t.value === `stmt:${name}`);
-          if (stmtTok) {
-            return {
-              range: axmToLsp({
-                start: { line: decl.range.start.line, character: stmtTok.range.start.character + 'stmt:'.length },
-                end: stmtTok.range.end,
-              }),
-              placeholder: name,
-            };
+          const typeTok = tokenizeLine(lineText, decl.range.start.line)
+            .find(t => t.kind === 'Identifier' && t.value === name);
+          if (typeTok) {
+            return { range: axmToLsp(typeTok.range), placeholder: name };
           }
         }
       }
@@ -567,13 +561,9 @@ export async function handleRename(params: RenameParams): Promise<WorkspaceEdit 
       for (const decl of file.declarations) {
         if (decl.kind !== 'statement' || decl.statementType !== name) continue;
         const lineText = await getLineText(uri, decl.range.start.line);
-        const stmtTok = tokenizeLine(lineText, decl.range.start.line).find(t => t.kind === 'Keyword' && t.value === `stmt:${name}`);
-        if (!stmtTok) continue;
-        const typeNameRange: AxmRange = {
-          start: { line: decl.range.start.line, character: stmtTok.range.start.character + 'stmt:'.length },
-          end: stmtTok.range.end,
-        };
-        addEdit(uri, typeNameRange, newName);
+        const typeTok = tokenizeLine(lineText, decl.range.start.line).find(t => t.kind === 'Identifier' && t.value === name);
+        if (!typeTok) continue;
+        addEdit(uri, typeTok.range, newName);
       }
     }
   }

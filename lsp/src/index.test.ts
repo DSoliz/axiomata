@@ -55,7 +55,7 @@ describe('LSP Go to Definition', () => {
 
     // 3. Mock documents.get
     const mockDoc = {
-      getText: () => 'stmt:decision a2 "because of @a1"'
+      getText: () => 'decision a2 "because of @a1"'
     }
     vi.spyOn(documents, 'get').mockReturnValue(mockDoc as any)
 
@@ -78,7 +78,7 @@ describe('LSP Go to Definition', () => {
     })
   })
 
-  it('resolves type name in stmt:<type> and goes to its definition', () => {
+  it('resolves type name and goes to its definition', () => {
     // 1. Setup mock source files
     const sourceFile: SourceFile = {
       path: '/test/kb/simple.axm',
@@ -109,13 +109,13 @@ describe('LSP Go to Definition', () => {
     }
     currentIndex.types.set('decision', type1)
 
-    // 3. Mock documents.get returning the line containing stmt:decision
+    // 3. Mock documents.get returning the statement line: 'decision a1 "we will serve JWT"'
+    //    'decision' spans chars 0-8, so cursor at char 7 is over the type name
     const mockDoc = {
-      getText: () => 'stmt:decision a1 "we will serve JWT"'
+      getText: () => 'decision a1 "we will serve JWT"'
     }
     vi.spyOn(documents, 'get').mockReturnValue(mockDoc as any)
 
-    // Test resolving type name "decision" at line 1, character 7 (inside "stmt:decision")
     const pos = { line: 1, character: 7 }
     const resolved = resolveIdAtPosition(fileUri, pos)
     expect(resolved).toEqual({ kind: 'type', name: 'decision' })
@@ -149,7 +149,7 @@ describe('LSP Go to Definition', () => {
     }
     sourceFiles.set(fileUri, sourceFile)
 
-    const mockDoc = { getText: () => 'stmt:decision a1 "we will serve JWT"' }
+    const mockDoc = { getText: () => 'decision a1 "we will serve JWT"' }
     vi.spyOn(documents, 'get').mockReturnValue(mockDoc as any)
 
     expect(resolveIdAtPosition(fileUri, { line: 99, character: 0 })).toBeNull()
@@ -174,7 +174,7 @@ describe('LSP Go to Definition', () => {
     }
     sourceFiles.set(fileUri, sourceFile)
 
-    const mockDoc = { getText: () => 'stmt:decision a2 "because of @missing"' }
+    const mockDoc = { getText: () => 'decision a2 "because of @missing"' }
     vi.spyOn(documents, 'get').mockReturnValue(mockDoc as any)
 
     // 'missing' resolves positionally but has no entry in the index
@@ -193,11 +193,9 @@ describe('Potential issue cases', () => {
   })
 
   it('resolves to the statement body instead of the type when document is not open in editor', () => {
-    // When documents.get returns undefined the stmt:<type> regex block at
-    // index.ts:212 is skipped. Control falls through to the generic declaration
-    // scanner, which matches the statement declaration on the same line.
-    // Result: Go to Definition jumps to the *statement body* rather than the
-    // type definition — wrong navigation target for the user.
+    // When documents.get returns undefined the type-detection block is skipped.
+    // Control falls through to the generic declaration scanner, which matches
+    // the statement declaration on the same line.
     const sourceFile: SourceFile = {
       path: '/test/kb/simple.axm',
       declarations: [
@@ -212,9 +210,10 @@ describe('Potential issue cases', () => {
     }
     sourceFiles.set(fileUri, sourceFile)
 
-    // With document open: the regex path fires and resolves to the type.
+    // With document open: type token path fires and resolves to the type.
+    // 'decision' spans chars 0-8, cursor at char 7 is over 'decision'.
     vi.spyOn(documents, 'get').mockReturnValue({
-      getText: () => 'stmt:decision a1 "we will serve JWT"'
+      getText: () => 'decision a1 "we will serve JWT"'
     } as any)
     expect(resolveIdAtPosition(fileUri, { line: 0, character: 7 }))
       .toEqual({ kind: 'type', name: 'decision' })
@@ -226,14 +225,11 @@ describe('Potential issue cases', () => {
       .toEqual({ kind: 'statement', id: 'a1' }) // wrong: should be { kind: 'type' }
   })
 
-  it('hasStatementDecl guard blocks the regex path but the fallback range scan still resolves the type', () => {
-    // hasStatementDecl (index.ts:214) requires a *statement* declaration at the
-    // cursor line before the regex runs. When only a type declaration is present,
-    // the guard is false and the regex block is skipped entirely — getText is
-    // never called. The fallback range scanner at index.ts:233 then picks up the
-    // type declaration via its range, so the final result is still correct. This
-    // means getText mock fragility is invisible in this path: a bug in the getText
-    // range would never surface because getText is not called at all.
+  it('hasStatementDecl guard blocks the type-detection path but the fallback range scan still resolves the type', () => {
+    // hasStatementDecl requires a *statement* declaration at the cursor line
+    // before the type-token path runs. When only a type declaration is present,
+    // the guard is false and the block is skipped entirely — getText is never
+    // called. The fallback range scanner picks up the type declaration.
     const sourceFile: SourceFile = {
       path: '/test/kb/simple.axm',
       declarations: [
@@ -248,23 +244,21 @@ describe('Potential issue cases', () => {
     }
     sourceFiles.set(fileUri, sourceFile)
 
-    const mockDoc = { getText: vi.fn().mockReturnValue('stmt:decision a1 "we will serve JWT"') }
+    const mockDoc = { getText: vi.fn().mockReturnValue('decision a1 "we will serve JWT"') }
     vi.spyOn(documents, 'get').mockReturnValue(mockDoc as any)
 
-    // Result is correct (type resolves), but via the fallback path — not the regex.
+    // Result is correct (type resolves), but via the fallback path — not the type-token path.
     expect(resolveIdAtPosition(fileUri, { line: 0, character: 7 }))
       .toEqual({ kind: 'type', name: 'decision' })
 
-    // getText was never called because the hasStatementDecl guard blocked the regex block.
+    // getText was never called because the hasStatementDecl guard blocked the type-token block.
     expect(mockDoc.getText).not.toHaveBeenCalled()
   })
 
   it('getText mock is range-agnostic, so a wrong range in production would not be caught', () => {
     // The existing getText mock returns a fixed string regardless of the range
-    // argument. If index.ts ever queried the wrong line/character range, tests
-    // would still pass. This test pins the range actually used so a regression
-    // would surface.
-    const mockDoc = { getText: vi.fn().mockReturnValue('stmt:decision a1 "we will serve JWT"') }
+    // argument. This test pins the range actually used so a regression surfaces.
+    const mockDoc = { getText: vi.fn().mockReturnValue('decision a1 "we will serve JWT"') }
     vi.spyOn(documents, 'get').mockReturnValue(mockDoc as any)
 
     const sourceFile: SourceFile = {
@@ -289,11 +283,9 @@ describe('Potential issue cases', () => {
       end: { line: 1, character: Number.MAX_SAFE_INTEGER }
     })
 
-    // Demonstrate mock fragility: it returns the same line-1 text even when
-    // queried for a completely different range (line 99). A stricter mock
-    // would reject this call.
+    // Demonstrate mock fragility: returns same text even for a different range.
     expect(mockDoc.getText({ start: { line: 99, character: 0 }, end: { line: 99, character: 5 } }))
-      .toBe('stmt:decision a1 "we will serve JWT"')
+      .toBe('decision a1 "we will serve JWT"')
   })
 })
 
@@ -355,7 +347,8 @@ describe('Hyphenated symbol rename', () => {
   })
 
   it('prepareRename on a hyphenated declaration id returns the full token range', async () => {
-    // 'stmt:domain-term fast-restaurant "..."' — the id token spans chars 16-31
+    // 'domain-term fast-restaurant "..."' — 'domain-term' is 11 chars (0-10),
+    // space at 11, so 'fast-restaurant' spans chars 12-27
     const sourceFile: SourceFile = {
       path: '/test/kb/simple.axm',
       declarations: [
@@ -378,17 +371,16 @@ describe('Hyphenated symbol rename', () => {
     })
 
     vi.spyOn(documents, 'get').mockReturnValue({
-      getText: () => 'stmt:domain-term fast-restaurant "a restaurant that serves fast food"',
+      getText: () => 'domain-term fast-restaurant "a restaurant that serves fast food"',
     } as any)
 
-    // Cursor on 'restaurant' part of 'fast-restaurant' (char 22, inside 'fast-restaurant')
+    // Cursor on 'restaurant' part of 'fast-restaurant' (char 22, inside 'fast-restaurant' at 12-27)
     const result = await handlePrepareRename({ textDocument: { uri: fileUri }, position: { line: 0, character: 22 } })
 
-    // 'stmt:domain-term ' is 17 chars (0–16), so 'fast-restaurant' spans 17–32
     expect(result).toEqual({
       range: {
-        start: { line: 0, character: 17 },
-        end: { line: 0, character: 32 },
+        start: { line: 0, character: 12 },
+        end: { line: 0, character: 27 },
       },
       placeholder: 'fast-restaurant',
     })
@@ -431,10 +423,10 @@ describe('Hyphenated symbol rename', () => {
     })
 
     vi.spyOn(documents, 'get').mockReturnValue({
-      getText: () => 'stmt:domain-term fast-restaurant "a restaurant that serves fast food"',
+      getText: () => 'domain-term fast-restaurant "a restaurant that serves fast food"',
     } as any)
 
-    // Cursor on the declaration id 'fast-restaurant'
+    // Cursor on the declaration id 'fast-restaurant' (char 22, inside 12-27)
     const result = await handleRename({
       textDocument: { uri: fileUri },
       position: { line: 0, character: 22 },
@@ -445,10 +437,10 @@ describe('Hyphenated symbol rename', () => {
     const changes = result!.changes![fileUri]
     expect(changes).toHaveLength(2) // declaration + 1 reference
 
-    // Declaration edit: 'fast-restaurant' spans chars 17–32 on line 0
-    // ('stmt:domain-term ' is 17 chars, 'fast-restaurant' is 15 chars)
+    // Declaration edit: 'fast-restaurant' spans chars 12-27 on line 0
+    // ('domain-term ' is 12 chars, 'fast-restaurant' is 15 chars)
     expect(changes).toContainEqual({
-      range: { start: { line: 0, character: 17 }, end: { line: 0, character: 32 } },
+      range: { start: { line: 0, character: 12 }, end: { line: 0, character: 27 } },
       newText: 'quick-eats',
     })
     // Reference edit: '@fast-restaurant' → '@quick-eats' (starts at char 32, id at 33–48)

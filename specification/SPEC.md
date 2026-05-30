@@ -19,7 +19,7 @@ A file is a sequence of lines. There are three kinds of lines:
 |---|---|---|
 | Comment | `// ...` | Ignored by parsers |
 | Type declaration | `type <name> "<description>"` | Define a custom statement type |
-| Statement | `stmt[:<type>] <id> "<value>"` | Declare a named, typed statement |
+| Statement | `[<type>] <id> "<value>"` | Declare a named, optionally-typed statement |
 
 Lines are processed top-to-bottom. Blank lines are ignored.
 
@@ -31,7 +31,7 @@ A comment begins with `//` and extends to the end of the line. Comments may appe
 
 ```
 // This is a comment
-stmt:decision a1 "we will use PostgreSQL" // inline comment
+decision a1 "we will use PostgreSQL" // inline comment
 ```
 
 ---
@@ -46,7 +46,7 @@ type <name> "<description>"
 
 - `name` must match `[a-zA-Z][a-zA-Z0-9\-]*` (letters, digits, hyphens)
 - `description` is a double-quoted string
-- Types must be declared before they are used as a `stmt` type within the same file, or in a file that is processed before this one in the knowledge base
+- `type` is a reserved keyword and cannot be used as a type name
 - Re-declaring the same type name is an error
 
 **Example** (`types.axm`)
@@ -61,60 +61,35 @@ type unknown     "an open question or unresolved matter"
 
 ## 4. Statements
 
-A statement is a typed, named entry with a string value.
+A statement is a named entry with an optional type and a string value.
 
 ```
-stmt[:<type>] <id> "<value>"
+[<type>] <id> "<value>"
 ```
 
-- `stmt` without a `:` suffix creates a statement with no type (generic)
+- Omitting `<type>` creates an untyped statement
 - `<type>` must refer to a type declared somewhere in the knowledge base
 - `<id>` is the statement's unique name within the knowledge base; must match `[a-zA-Z][a-zA-Z0-9\-]*`
-- `<value>` is a double-quoted string; may contain inline references (see §6); escape a literal `"` as `\"`
+- `<value>` is a double-quoted string; may contain inline references (see §5); escape a literal `"` as `\"`
 - All statement IDs are global — two statements with the same ID anywhere in the knowledge base is an error
 
 **Example** (`domain-language.axm`)
 
 ```
-stmt:domain-term fast-restaurant "a restaurant which has no dine-in"
+domain-term fast-restaurant "a restaurant which has no dine-in"
 ```
 
 **Example** (`simple-use-case.axm`)
 
 ```
-stmt:decision a1 "@fast-restaurant"
-stmt:decision a2 "because of #a1 the website"
-stmt:unknown  u2 "should @fast-restaurant website"
+decision a1 "@fast-restaurant"
+decision a2 "because of @a1 the website"
+unknown  u2 "should @fast-restaurant website"
 ```
 
 ---
 
-## 5. LSP-Assisted Statement Creation
-
-When authoring with an LSP-enabled editor, statements can also be written in **value-first order**:
-
-```
-"<value>" <id> stmt[:<type>]
-```
-
-This form exists to support a rapid-entry workflow: as soon as the user opens a `"`, the LSP inserts a generated unique ID and the `stmt` keyword, letting the author type the value first. The author can then append `:<type>` to assign a type.
-
-Both orderings are semantically identical. The canonical form for storage and display is `stmt[:<type>] <id> "<value>"`.
-
-**Workflow example**
-
-```
-// user types: "
-// LSP expands to:
-"" df131 stmt
-
-// user fills in value and optionally types : for type completion:
-"a restaurant which has no dine-in" df131 stmt:domain-term
-```
-
----
-
-## 6. Inline References
+## 5. Inline References
 
 Inside a statement's value string, any other statement can be referenced by prefixing its ID with `@`:
 
@@ -125,9 +100,9 @@ Inside a statement's value string, any other statement can be referenced by pref
 `@` resolves to the statement with that ID, regardless of its type. It works the same for domain terms, decisions, unknowns, or any custom type.
 
 ```
-stmt:decision a1 "@fast-restaurant"
-stmt:decision a2 "because of @a1 the website"
-stmt:unknown  u2 "should @fast-restaurant website"
+decision a1 "@fast-restaurant"
+decision a2 "because of @a1 the website"
+unknown  u2 "should @fast-restaurant website"
 ```
 
 Referencing an ID that does not exist anywhere in the knowledge base is an error.
@@ -136,7 +111,7 @@ A literal `"` inside a value string is escaped as `\"`.
 
 ---
 
-## 7. Global Index
+## 6. Global Index
 
 All statements declared across all `.axm` files in a knowledge base share a single flat namespace. There are no explicit imports. A tool (CLI, LSP, build step) is responsible for indexing the collection.
 
@@ -153,19 +128,19 @@ This means a file can reference a statement declared in any other file regardles
 
 ---
 
-## 8. Error Cases
+## 7. Error Cases
 
 | Condition | Error |
 |---|---|
 | Duplicate statement ID anywhere in the knowledge base | `DuplicateId` |
 | Duplicate type name | `DuplicateType` |
-| `stmt:<type>` where `<type>` is not declared | `UnknownType` |
-| `@id` or `#id` referencing a non-existent statement | `UnresolvedReference` |
+| `<type> <id>` where `<type>` is not declared | `UnknownType` |
+| `@id` referencing a non-existent statement | `UnresolvedReference` |
 | Malformed ID (invalid characters) | `InvalidId` |
 
 ---
 
-## 9. Example Knowledge Base
+## 8. Example Knowledge Base
 
 ```
 types.axm
@@ -174,17 +149,17 @@ types.axm
   type unknown     "an open question or unresolved matter"
 
 domain-language.axm
-  stmt:domain-term fast-restaurant "a restaurant which has no dine-in"
+  domain-term fast-restaurant "a restaurant which has no dine-in"
 
 simple-use-case.axm
-  stmt:decision a1 "@fast-restaurant"
-  stmt:decision a2 "because of @a1 the website"
-  stmt:unknown  u2 "should @fast-restaurant website"
+  decision a1 "@fast-restaurant"
+  decision a2 "because of @a1 the website"
+  unknown  u2 "should @fast-restaurant website"
 ```
 
 ---
 
-## 10. Conventions
+## 9. Conventions
 
 - Keep type declarations in a shared `types.axm` file at the root of the knowledge base.
 - Keep domain vocabulary in `domain-language.axm` or a `domain/` directory.

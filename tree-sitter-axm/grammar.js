@@ -19,24 +19,18 @@ module.exports = grammar({
       field('description', $.string),
     ),
 
-    // canonical:    stmt[:type] <id> "<value>"
-    // value-first:  "<value>" <id> stmt[:type]
+    // typed:   <type> <id> "<value>"
+    // untyped: <id> "<value>"
     statement: $ => choice(
       seq(
-        field('stmt_kw', $.stmt_keyword),
+        field('type', $.identifier),
         field('id', $.identifier),
         field('value', $.string),
       ),
       seq(
-        field('value', $.string),
         field('id', $.identifier),
-        field('stmt_kw', $.stmt_keyword),
+        field('value', $.string),
       ),
-    ),
-
-    stmt_keyword: $ => seq(
-      'stmt',
-      optional(seq(':', field('type', $.identifier))),
     ),
 
     identifier: $ => /[a-zA-Z][a-zA-Z0-9_-]*/,

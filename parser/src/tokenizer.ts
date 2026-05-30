@@ -48,26 +48,9 @@ export function tokenizeLine(line: string, lineIndex: number): Token[] {
       const start = i
       while (i < line.length && /[a-zA-Z0-9-]/.test(line[i])) i++
       const word = line.slice(start, i)
-
-      if (word === 'type') {
-        tokens.push({ kind: 'Keyword', value: 'type', range: range(start, i) })
-      } else if (word === 'stmt') {
-        if (line[i] === ':') {
-          i++ // consume ':'
-          if (/[a-zA-Z]/.test(line[i] ?? '')) {
-            const typeStart = i
-            while (i < line.length && /[a-zA-Z0-9-]/.test(line[i])) i++
-            tokens.push({ kind: 'Keyword', value: `stmt:${line.slice(typeStart, i)}`, range: range(start, i) })
-          } else {
-            // stmt: not followed by a valid identifier
-            tokens.push({ kind: 'Unknown', value: line.slice(start, i), range: range(start, i) })
-          }
-        } else {
-          tokens.push({ kind: 'Keyword', value: 'stmt', range: range(start, i) })
-        }
-      } else {
-        tokens.push({ kind: 'Identifier', value: word, range: range(start, i) })
-      }
+      tokens.push(word === 'type'
+        ? { kind: 'Keyword', value: 'type', range: range(start, i) }
+        : { kind: 'Identifier', value: word, range: range(start, i) })
       continue
     }
 

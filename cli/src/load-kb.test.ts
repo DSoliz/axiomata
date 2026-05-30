@@ -7,10 +7,10 @@ import { loadKnowledgeBase } from './load-kb.js'
 const TYPES = `type domain-term "a domain term"
 type decision "a decision"`
 
-const DOMAIN = `stmt:domain-term fast-restaurant "a restaurant which has no dine-in"`
+const DOMAIN = `domain-term fast-restaurant "a restaurant which has no dine-in"`
 
-const SIMPLE = `stmt:decision a1 "@fast-restaurant"
-stmt:decision a2 "because of @a1 the website"`
+const SIMPLE = `decision a1 "@fast-restaurant"
+decision a2 "because of @a1 the website"`
 
 let tmpDir: string
 
@@ -77,7 +77,7 @@ describe('loadKnowledgeBase', () => {
   })
 
   it('collects semantic errors from the indexer', async () => {
-    await write('test.axm', 'stmt:nonexistent a1 "val"')
+    await write('test.axm', 'nonexistent a1 "val"')
     const kb = await loadKnowledgeBase(tmpDir)
     expect(kb.errors.some(e => e.code === 'UnknownType')).toBe(true)
   })

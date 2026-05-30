@@ -3,79 +3,79 @@
 
 // ── Goals ────────────────────────────────────────────────────────────────────
 
-stmt:goal bridge-human-agent "humans and AI agents query the same @knowledge-base with the same tools — neither needs a translation layer or a separate API"
-stmt:goal decision-audit-trail "every architectural and product decision is recorded with its reasoning so future contributors do not have to reverse-engineer the why"
-stmt:goal repo-native-knowledge "decision context lives in the same repository as the code that implements it, versioned together, instead of in an external wiki that drifts out of date"
-stmt:goal low-friction-authoring "recording a decision is cheap enough that authors do it in the moment — quote-first entry, auto-generated IDs, no schema design step before writing the first statement"
+goal bridge-human-agent "humans and AI agents query the same @knowledge-base with the same tools — neither needs a translation layer or a separate API"
+goal decision-audit-trail "every architectural and product decision is recorded with its reasoning so future contributors do not have to reverse-engineer the why"
+goal repo-native-knowledge "decision context lives in the same repository as the code that implements it, versioned together, instead of in an external wiki that drifts out of date"
+goal low-friction-authoring "recording a decision is cheap enough that authors do it in the moment — auto-generated IDs, no schema design step before writing the first statement"
 
 // ── Domain vocabulary ────────────────────────────────────────────────────────
 
-stmt:domain-term knowledge-base "a directory of .axm files sharing a single flat namespace of statements and types"
-stmt:domain-term statement "a typed, named entry with a string value — the basic unit stored in a @knowledge-base"
-stmt:domain-term type-declaration "a named category statements can belong to, declared via the type keyword"
-stmt:domain-term reference "an at-prefixed id token inside a @statement value that points to another @statement"
-stmt:domain-term canonical-form "the storage form stmt[:type] id \"value\" — the only form written to disk by tools"
-stmt:domain-term lsp-form "the value-first form \"value\" id stmt[:type] that supports rapid quote-first entry"
+domain-term knowledge-base "a directory of .axm files sharing a single flat namespace of statements and types"
+domain-term statement "a typed, named entry with a string value — the basic unit stored in a @knowledge-base"
+domain-term type-declaration "a named category statements can belong to, declared via the type keyword"
+domain-term reference "an at-prefixed id token inside a @statement value that points to another @statement"
+domain-term canonical-form "the storage form [type] id \"value\" — the only form written to disk by tools"
 
 // ── Components ───────────────────────────────────────────────────────────────
 
-stmt:component core "shared types and error definitions consumed by every other package — AST, KnowledgeIndex, AxmError, Range"
-stmt:component parser "stateless transformation pipeline — tokenizeLine → parseLine → parseFile → buildIndex"
-stmt:component cli "the axm command-line tool built on @core and @parser; commands live in cli/src/commands/"
-stmt:component lsp "the axiomata-lsp language server built on @core and @parser; serves diagnostics, hover, completion, go-to-def, references, rename"
-stmt:component tree-sitter-axm "tree-sitter grammar producing parser.c and queries/highlights.scm for editor syntax highlighting; sibling to the TS pipeline"
-stmt:component load-kb "cli/src/load-kb.ts — the orchestrator that walks a directory, parses every .axm file, and returns a built index plus collected errors"
-stmt:component indexer "parser/src/indexer.ts — runs the two-pass index/resolution algorithm and emits DuplicateId, DuplicateType, UnknownType, UnresolvedReference errors"
+component core "shared types and error definitions consumed by every other package — AST, KnowledgeIndex, AxmError, Range"
+component parser "stateless transformation pipeline — tokenizeLine → parseLine → parseFile → buildIndex"
+component cli "the axm command-line tool built on @core and @parser; commands live in cli/src/commands/"
+component lsp "the axiomata-lsp language server built on @core and @parser; serves diagnostics, hover, completion, go-to-def, references, rename"
+component tree-sitter-axm "tree-sitter grammar producing parser.c and queries/highlights.scm for editor syntax highlighting; sibling to the TS pipeline"
+component load-kb "cli/src/load-kb.ts — the orchestrator that walks a directory, parses every .axm file, and returns a built index plus collected errors"
+component indexer "parser/src/indexer.ts — runs the two-pass index/resolution algorithm and emits DuplicateId, DuplicateType, UnknownType, UnresolvedReference errors"
 
 // ── Principles ───────────────────────────────────────────────────────────────
 
-stmt:principle plain-text-first "the format is human-readable plain text and the CLI is the primary interface — every operation an LSP performs must also be reachable from the shell. This is what delivers @repo-native-knowledge: a .axm file is a normal text file, diffable in git like any other source"
-stmt:principle agent-readable "every CLI command accepts --json so AI agents can use the same operations humans do — the mechanism that delivers @bridge-human-agent"
-stmt:principle flat-namespace "all statements and types in a KB share one namespace across all files — no imports, no modules; this is what makes cross-file at-prefixed id references work transparently"
-stmt:principle stateless-pipeline "@parser is a pure transformation chain — input text in, AST/index/errors out; no I/O, no globals. @load-kb is the only piece that touches the filesystem on the parser side"
-stmt:principle errors-as-data "parse and index errors are first-class data structures (the AxmError union in @core) with codes and ranges, not strings — @cli formats them for humans and @lsp converts them to LSP diagnostics"
-stmt:principle share-the-pipeline "the @lsp and @cli both consume the same @parser output; there is no separate parsing path for the language server"
+principle plain-text-first "the format is human-readable plain text and the CLI is the primary interface — every operation an LSP performs must also be reachable from the shell. This is what delivers @repo-native-knowledge: a .axm file is a normal text file, diffable in git like any other source"
+principle agent-readable "every CLI command accepts --json so AI agents can use the same operations humans do — the mechanism that delivers @bridge-human-agent"
+principle flat-namespace "all statements and types in a KB share one namespace across all files — no imports, no modules; this is what makes cross-file at-prefixed id references work transparently"
+principle stateless-pipeline "@parser is a pure transformation chain — input text in, AST/index/errors out; no I/O, no globals. @load-kb is the only piece that touches the filesystem on the parser side"
+principle errors-as-data "parse and index errors are first-class data structures (the AxmError union in @core) with codes and ranges, not strings — @cli formats them for humans and @lsp converts them to LSP diagnostics"
+principle share-the-pipeline "the @lsp and @cli both consume the same @parser output; there is no separate parsing path for the language server"
 
 // ── Architectural decisions ──────────────────────────────────────────────────
 
-stmt:decision pnpm-workspace-with-turbo "use pnpm workspaces + Turbo for the monorepo build graph; packages depend on each other via workspace:* references"
-stmt:decision four-package-split "split the system into @core (types), @parser (logic), @cli (binary), @lsp (server) — @core has no runtime code, just types, so it can be a dependency without coupling"
-stmt:decision two-pass-indexing "indexing is two passes: first collect all declarations, then resolve references — this is what lets a statement forward-reference another statement in any file regardless of order"
-stmt:decision tokenize-per-line "the tokenizer operates one line at a time — a statement cannot span multiple lines, which keeps the grammar trivially recoverable from any single parse error"
-stmt:decision dual-statement-forms "support both @canonical-form and @lsp-form so authors can either type stmt-first or quote-first; both parse to the same AST node. Quote-first entry serves @low-friction-authoring — the LSP scaffolds the id and stmt keyword the moment the author opens a quote"
-stmt:decision auto-generated-ids "axm add generates short hex IDs like s3f1a by default so authors do not have to invent unique names for ephemeral statements — serves @low-friction-authoring. Descriptive slugs (e.g. tenant, pg-jsonb) are reserved for things meant to be referenced by name"
-stmt:decision rename-via-tokenizer "axm rename re-tokenizes each affected line and edits by Range rather than doing text find-replace — avoids accidentally rewriting an id that appears inside a string value or comment"
-stmt:decision lsp-rebuild-on-change "the LSP rebuilds the entire knowledge index on every document change AND after each batch of @cross-file-watching events, rather than doing incremental updates — fine at current scale, see @incremental-indexing-needed"
-stmt:decision cross-file-watching "the @lsp registers workspace/didChangeWatchedFiles for **/*.axm during onInitialized, so edits made outside the editor (axm add, axm rename, git checkout, agent writes) flow into open buffers without a manual reload. URIs the editor owns (in the documents collection) are skipped to avoid racing the live-document path. Serves @bridge-human-agent by keeping editor and CLI views in sync"
-stmt:decision tree-sitter-separate "syntax highlighting lives in @tree-sitter-axm, completely independent of the TS @parser — editors get fast highlighting without invoking the LSP"
-stmt:decision tsconfig-project-refs "use TypeScript project references (tsc --build) so each workspace package compiles independently and Turbo can cache per-package outputs"
+decision pnpm-workspace-with-turbo "use pnpm workspaces + Turbo for the monorepo build graph; packages depend on each other via workspace:* references"
+decision four-package-split "split the system into @core (types), @parser (logic), @cli (binary), @lsp (server) — @core has no runtime code, just types, so it can be a dependency without coupling"
+decision two-pass-indexing "indexing is two passes: first collect all declarations, then resolve references — this is what lets a statement forward-reference another statement in any file regardless of order"
+decision tokenize-per-line "the tokenizer operates one line at a time — a statement cannot span multiple lines, which keeps the grammar trivially recoverable from any single parse error"
+decision type-as-prefix "the type name is written directly as the first token of a statement ([type] id \"value\") rather than as stmt:type — eliminates the stmt keyword; type is the only reserved word"
+decision auto-generated-ids "axm add generates short hex IDs like s3f1a by default so authors do not have to invent unique names for ephemeral statements — serves @low-friction-authoring. Descriptive slugs (e.g. tenant, pg-jsonb) are reserved for things meant to be referenced by name"
+decision rename-via-tokenizer "axm rename re-tokenizes each affected line and edits by Range rather than doing text find-replace — avoids accidentally rewriting an id that appears inside a string value or comment"
+decision lsp-rebuild-on-change "the LSP rebuilds the entire knowledge index on every document change AND after each batch of @cross-file-watching events, rather than doing incremental updates — fine at current scale, see @incremental-indexing-needed"
+decision cross-file-watching "the @lsp registers workspace/didChangeWatchedFiles for **/*.axm during onInitialized, so edits made outside the editor (axm add, axm rename, git checkout, agent writes) flow into open buffers without a manual reload. URIs the editor owns (in the documents collection) are skipped to avoid racing the live-document path. Serves @bridge-human-agent by keeping editor and CLI views in sync"
+decision tree-sitter-separate "syntax highlighting lives in @tree-sitter-axm, completely independent of the TS @parser — editors get fast highlighting without invoking the LSP"
+decision tsconfig-project-refs "use TypeScript project references (tsc --build) so each workspace package compiles independently and Turbo can cache per-package outputs"
 
 // ── Invariants ───────────────────────────────────────────────────────────────
 
-stmt:invariant unique-statement-ids "statement IDs are unique across the entire @knowledge-base — enforced by @indexer pass 1; violating this produces a DuplicateId error"
-stmt:invariant unique-type-names "type names are unique across the entire @knowledge-base — enforced by @indexer pass 1; violating this produces a DuplicateType error"
-stmt:invariant references-resolve "every @reference must point to a declared @statement — enforced by @indexer pass 2; violating this produces an UnresolvedReference error"
-stmt:invariant typed-stmts-need-types "a stmt:type must reference a declared type — enforced by @indexer pass 2; violating this produces an UnknownType error"
-stmt:invariant id-grammar "identifiers must match /^[a-zA-Z][a-zA-Z0-9_-]*/ — enforced at every write boundary (@cli add, rename) and at parse time"
-stmt:invariant disk-format-canonical "tools always write @canonical-form to disk even when the source used @lsp-form — keeps stored files diff-friendly"
+invariant unique-statement-ids "statement IDs are unique across the entire @knowledge-base — enforced by @indexer pass 1; violating this produces a DuplicateId error"
+invariant unique-type-names "type names are unique across the entire @knowledge-base — enforced by @indexer pass 1; violating this produces a DuplicateType error"
+invariant references-resolve "every @reference must point to a declared @statement — enforced by @indexer pass 2; violating this produces an UnresolvedReference error"
+invariant typed-stmts-need-types "a typed statement must reference a declared type — enforced by @indexer pass 2; violating this produces an UnknownType error"
+invariant id-grammar "identifiers must match /^[a-zA-Z][a-zA-Z0-9_-]*/ — enforced at every write boundary (@cli add, rename) and at parse time"
+invariant disk-format-canonical "tools always write @canonical-form to disk — keeps stored files diff-friendly"
+invariant type-not-reserved "the word 'type' cannot be used as a type name or statement id because it is the only keyword in the grammar"
 
 // ── Constraints ──────────────────────────────────────────────────────────────
 
-stmt:constraint single-line-statements "a statement must fit on one line because @tokenize-per-line operates line-by-line; multi-line values are not supported by the grammar"
-stmt:constraint no-publish-npm "tree-sitter-axm is not published to npm; consumers must clone the repo and point Helix at the local source path"
-stmt:constraint node-20-1-plus "the CLI and LSP require Node 20.1+ because @load-kb, the LSP workspace scanner, and axm add/init all use fs.readdir with the recursive option, which is stable from 20.1.0 onward"
-stmt:constraint pnpm-only "build assumes pnpm — uses workspace:* protocol and pnpm-workspace.yaml; npm/yarn would require config changes"
+constraint single-line-statements "a statement must fit on one line because @tokenize-per-line operates line-by-line; multi-line values are not supported by the grammar"
+constraint no-publish-npm "tree-sitter-axm is not published to npm; consumers must clone the repo and point Helix at the local source path"
+constraint node-20-1-plus "the CLI and LSP require Node 20.1+ because @load-kb, the LSP workspace scanner, and axm add/init all use fs.readdir with the recursive option, which is stable from 20.1.0 onward"
+constraint pnpm-only "build assumes pnpm — uses workspace:* protocol and pnpm-workspace.yaml; npm/yarn would require config changes"
 
 // ── Assumptions ──────────────────────────────────────────────────────────────
 
-stmt:assumption small-kb-scale "the @lsp rebuilding the entire index on every keystroke assumes KBs stay small — probably fine up to thousands of statements, worth measuring before that becomes a known problem"
-stmt:assumption single-workspace-root "the @lsp only scans workspace folders it is given on initialize — assumes the user opens the KB directory directly, not a parent containing it"
+assumption small-kb-scale "the @lsp rebuilding the entire index on every keystroke assumes KBs stay small — probably fine up to thousands of statements, worth measuring before that becomes a known problem"
+assumption single-workspace-root "the @lsp only scans workspace folders it is given on initialize — assumes the user opens the KB directory directly, not a parent containing it"
 
 // ── Open questions ───────────────────────────────────────────────────────────
 
-stmt:unknown incremental-indexing-needed "at what KB size does @lsp-rebuild-on-change start to feel slow, and is per-file incremental indexing worth the added complexity before then"
-stmt:unknown multi-line-values "should @single-line-statements be relaxed to allow multi-line string values, and what tokenizer changes would that require"
-stmt:unknown stable-id-policy "is there a project convention for when to use slug IDs vs auto-generated hex IDs, beyond the loose guidance in the spec"
-stmt:unknown publish-grammar "should @tree-sitter-axm be published so editors can install it without cloning the repo, and what is the maintenance cost"
-stmt:unknown lsp-config-discovery "should the LSP auto-discover the KB root by walking up looking for types.axm rather than relying on workspace folders — would simplify @single-workspace-root"
-stmt:unknown versioning-strategy "all packages are at 0.1.0; what is the release/versioning plan once the format stabilises and external consumers appear"
+unknown incremental-indexing-needed "at what KB size does @lsp-rebuild-on-change start to feel slow, and is per-file incremental indexing worth the added complexity before then"
+unknown multi-line-values "should @single-line-statements be relaxed to allow multi-line string values, and what tokenizer changes would that require"
+unknown stable-id-policy "is there a project convention for when to use slug IDs vs auto-generated hex IDs, beyond the loose guidance in the spec"
+unknown publish-grammar "should @tree-sitter-axm be published so editors can install it without cloning the repo, and what is the maintenance cost"
+unknown lsp-config-discovery "should the LSP auto-discover the KB root by walking up looking for types.axm rather than relying on workspace folders — would simplify @single-workspace-root"
+unknown versioning-strategy "all packages are at 0.1.0; what is the release/versioning plan once the format stabilises and external consumers appear"

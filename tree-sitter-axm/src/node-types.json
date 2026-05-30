@@ -58,12 +58,12 @@
           }
         ]
       },
-      "stmt_kw": {
+      "type": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
-            "type": "stmt_keyword",
+            "type": "identifier",
             "named": true
           }
         ]
@@ -74,22 +74,6 @@
         "types": [
           {
             "type": "string",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "stmt_keyword",
-    "named": true,
-    "fields": {
-      "type": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "identifier",
             "named": true
           }
         ]
@@ -160,10 +144,6 @@
     "named": false
   },
   {
-    "type": ":",
-    "named": false
-  },
-  {
     "type": "@",
     "named": false
   },
@@ -174,10 +154,6 @@
   {
     "type": "escape_sequence",
     "named": true
-  },
-  {
-    "type": "stmt",
-    "named": false
   },
   {
     "type": "string_content",

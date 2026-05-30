@@ -27,41 +27,36 @@ describe('axm rename — statement ID', () => {
   it('renames a statement id in its declaration and all references', async () => {
     await write('types.axm', 'type decision "a decision"')
     await write('kb.axm', [
-      'stmt:decision a1 "we serve fast food"',
-      'stmt:decision a2 "because of @a1 we need a website"',
+      'decision a1 "we serve fast food"',
+      'decision a2 "because of @a1 we need a website"',
     ].join('\n'))
 
     await renameCommand('a1', 'auth-decision', tmpDir)
 
     const content = await read('kb.axm')
-    expect(content).toContain('stmt:decision auth-decision "we serve fast food"')
+    expect(content).toContain('decision auth-decision "we serve fast food"')
     expect(content).toContain('@auth-decision')
     expect(content).not.toContain(' a1 ')
     expect(content).not.toContain('@a1')
   })
 
   it('renames a hyphenated statement id across all references', async () => {
-    // Hyphens are valid in axm ids but break editor word-boundary detection —
-    // this is why prepareRename exists in the LSP. The CLI rename must handle
-    // them correctly at the text level too.
     await write('types.axm', 'type domain-term "a domain concept"')
-    await write('domain.axm', 'stmt:domain-term fast-restaurant "serves fast food"')
+    await write('domain.axm', 'domain-term fast-restaurant "serves fast food"')
     await write('decisions.axm', [
-      'stmt:domain-term fast-food "food served quickly"',
-      'stmt:domain-term quick-service "quick service model"',
-      'stmt:domain-term a1 "because of @fast-restaurant and @fast-food we pivot"',
+      'domain-term fast-food "food served quickly"',
+      'domain-term quick-service "quick service model"',
+      'domain-term a1 "because of @fast-restaurant and @fast-food we pivot"',
     ].join('\n'))
 
     await renameCommand('fast-restaurant', 'quick-eats', tmpDir)
 
     const domain = await read('domain.axm')
-    expect(domain).toBe('stmt:domain-term quick-eats "serves fast food"')
+    expect(domain).toBe('domain-term quick-eats "serves fast food"')
 
     const decisions = await read('decisions.axm')
-    // unrelated hyphenated ids must be untouched
-    expect(decisions).toContain('stmt:domain-term fast-food')
+    expect(decisions).toContain('domain-term fast-food')
     expect(decisions).toContain('@fast-food')
-    // the renamed symbol must be updated everywhere
     expect(decisions).toContain('@quick-eats')
     expect(decisions).not.toContain('fast-restaurant')
     expect(decisions).not.toContain('@fast-restaurant')
@@ -69,8 +64,8 @@ describe('axm rename — statement ID', () => {
 
   it('renames across multiple files', async () => {
     await write('types.axm', 'type decision "a decision"')
-    await write('a.axm', 'stmt:decision a1 "first decision"')
-    await write('b.axm', 'stmt:decision b1 "because of @a1 we do this"')
+    await write('a.axm', 'decision a1 "first decision"')
+    await write('b.axm', 'decision b1 "because of @a1 we do this"')
 
     await renameCommand('a1', 'root-decision', tmpDir)
 
@@ -80,7 +75,7 @@ describe('axm rename — statement ID', () => {
 
   it('is a no-op when old and new name are the same', async () => {
     await write('types.axm', 'type decision "a decision"')
-    await write('kb.axm', 'stmt:decision a1 "we serve fast food"')
+    await write('kb.axm', 'decision a1 "we serve fast food"')
 
     const before = await read('kb.axm')
     await renameCommand('a1', 'a1', tmpDir)
@@ -89,11 +84,11 @@ describe('axm rename — statement ID', () => {
 })
 
 describe('axm rename — type name', () => {
-  it('renames a type declaration and all stmt: usages', async () => {
+  it('renames a type declaration and all usages', async () => {
     await write('types.axm', 'type decision "a recorded decision"')
     await write('kb.axm', [
-      'stmt:decision a1 "we use JWT"',
-      'stmt:decision a2 "because of @a1 the site needs login"',
+      'decision a1 "we use JWT"',
+      'decision a2 "because of @a1 the site needs login"',
     ].join('\n'))
 
     await renameCommand('decision', 'adr', tmpDir)
@@ -102,16 +97,17 @@ describe('axm rename — type name', () => {
     expect(types).toBe('type adr "a recorded decision"')
 
     const kb = await read('kb.axm')
-    expect(kb).toContain('stmt:adr a1')
-    expect(kb).toContain('stmt:adr a2')
-    expect(kb).not.toContain('stmt:decision')
+    expect(kb).toContain('adr a1')
+    expect(kb).toContain('adr a2')
+    expect(kb).not.toContain('decision a1')
+    expect(kb).not.toContain('decision a2')
   })
 
   it('renames a hyphenated type name in declaration and all usages', async () => {
     await write('types.axm', 'type domain-term "a domain concept"')
     await write('kb.axm', [
-      'stmt:domain-term fast-restaurant "serves fast food"',
-      'stmt:domain-term quick-service "quick service model"',
+      'domain-term fast-restaurant "serves fast food"',
+      'domain-term quick-service "quick service model"',
     ].join('\n'))
 
     await renameCommand('domain-term', 'concept', tmpDir)
@@ -120,8 +116,8 @@ describe('axm rename — type name', () => {
     expect(types).toBe('type concept "a domain concept"')
 
     const kb = await read('kb.axm')
-    expect(kb).toContain('stmt:concept fast-restaurant')
-    expect(kb).toContain('stmt:concept quick-service')
+    expect(kb).toContain('concept fast-restaurant')
+    expect(kb).toContain('concept quick-service')
     expect(kb).not.toContain('domain-term')
   })
 })
@@ -141,8 +137,8 @@ describe('axm rename — error cases', () => {
   it('exits 1 when the new name already exists', async () => {
     await write('kb.axm', [
       'type decision "a decision"',
-      'stmt:decision a1 "first"',
-      'stmt:decision a2 "second"',
+      'decision a1 "first"',
+      'decision a2 "second"',
     ].join('\n'))
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as any)
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
