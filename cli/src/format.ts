@@ -1,3 +1,4 @@
+import { relative } from 'node:path'
 import type { AxmError, IndexedStatement, KnowledgeIndex } from '@axiomata/core'
 import { renderValue } from './search.js'
 
@@ -10,6 +11,16 @@ export function stmtToJson(stmt: IndexedStatement) {
     value: renderValue(stmt.value),
     file: stmt.file,
   }
+}
+
+export function groupStmtsByFile(stmts: IndexedStatement[], root: string): Record<string, Array<{ id: string; type: string; value: string }>> {
+  const groups: Record<string, Array<{ id: string; type: string; value: string }>> = {}
+  for (const stmt of stmts) {
+    const rel = relative(root, stmt.file)
+    if (!groups[rel]) groups[rel] = []
+    groups[rel].push({ id: stmt.id, type: stmt.statementType, value: renderValue(stmt.value) })
+  }
+  return groups
 }
 
 export function errorToJson(err: AxmError) {
