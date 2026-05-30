@@ -51,7 +51,7 @@ export function buildIndex(files: SourceFile[]): { index: KnowledgeIndex; errors
     for (const decl of file.declarations) {
       if (decl.kind !== 'statement') continue
 
-      if (decl.statementType !== null && !types.has(decl.statementType)) {
+      if (!types.has(decl.statementType)) {
         errors.push({ code: 'UnknownType', name: decl.statementType, file: file.path, range: decl.range })
       }
 

@@ -19,7 +19,7 @@ A file is a sequence of lines. There are three kinds of lines:
 |---|---|---|
 | Comment | `// ...` | Ignored by parsers |
 | Type declaration | `type <name> "<description>"` | Define a custom statement type |
-| Statement | `[<type>] <id> "<value>"` | Declare a named, optionally-typed statement |
+| Statement | `<type> <id> "<value>"` | Declare a named, typed statement |
 
 Lines are processed top-to-bottom. Blank lines are ignored.
 
@@ -61,13 +61,12 @@ type unknown     "an open question or unresolved matter"
 
 ## 4. Statements
 
-A statement is a named entry with an optional type and a string value.
+A statement is a named, typed entry with a string value.
 
 ```
-[<type>] <id> "<value>"
+<type> <id> "<value>"
 ```
 
-- Omitting `<type>` creates an untyped statement
 - `<type>` must refer to a type declared somewhere in the knowledge base
 - `<id>` is the statement's unique name within the knowledge base; must match `[a-zA-Z][a-zA-Z0-9\-]*`
 - `<value>` is a double-quoted string; may contain inline references (see §5); escape a literal `"` as `\"`

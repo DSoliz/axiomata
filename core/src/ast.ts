@@ -22,8 +22,7 @@ export interface TypeDeclarationNode {
 
 export interface StatementNode {
   kind: 'statement'
-  /** null when declared as bare `stmt` with no type */
-  statementType: string | null
+  statementType: string
   id: string
   value: ValueSegment[]
   range: Range

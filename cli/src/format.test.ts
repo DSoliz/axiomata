@@ -159,15 +159,6 @@ describe('formatQueryResult', () => {
     expect(out).toContain('because of @a1 the website')
   })
 
-  it('shows untyped for statements with no type', () => {
-    const stmt: IndexedStatement = {
-      id: 'df131', statementType: null,
-      value: [{ kind: 'text', value: 'some idea' }],
-      file: 'notes.axm', range: range(0, 0),
-    }
-    expect(formatQueryResult('df131', stmt)).toContain('(untyped)')
-  })
-
   it('shows an error message when id is not found', () => {
     const out = formatQueryResult('missing', undefined)
     expect(out).toContain("no statement with id 'missing'")

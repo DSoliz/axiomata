@@ -10,7 +10,7 @@ export interface IndexedType {
 
 export interface IndexedStatement {
   id: string
-  statementType: string | null
+  statementType: string
   value: ValueSegment[]
   file: string
   range: Range

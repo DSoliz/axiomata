@@ -48,12 +48,7 @@ function parseTypeDecl(tokens: Token[], file: string): { declaration: Declaratio
 }
 
 function parseStatement(tokens: Token[], file: string): { declaration: Declaration | null; errors: AxmError[] } {
-  // typed:   <type> <id> "<value>"
-  // untyped: <id> "<value>"
-  const isTyped = tokens[1]?.kind === 'Identifier' && tokens[2]?.kind === 'QuotedString'
-  const isUntyped = tokens[1]?.kind === 'QuotedString'
-
-  if (isTyped) {
+  if (tokens[1]?.kind === 'Identifier' && tokens[2]?.kind === 'QuotedString') {
     const { segments, errors } = parseValue(tokens[2].value, tokens[2].range, file)
     const node: StatementNode = {
       kind: 'statement',
@@ -65,20 +60,8 @@ function parseStatement(tokens: Token[], file: string): { declaration: Declarati
     return { declaration: node, errors }
   }
 
-  if (isUntyped) {
-    const { segments, errors } = parseValue(tokens[1].value, tokens[1].range, file)
-    const node: StatementNode = {
-      kind: 'statement',
-      statementType: null,
-      id: tokens[0].value,
-      value: segments,
-      range: { start: tokens[0].range.start, end: tokens[1].range.end },
-    }
-    return { declaration: node, errors }
-  }
-
   return {
     declaration: null,
-    errors: [{ code: 'ParseError', message: 'expected: [<type>] <id> "<value>"', file, range: tokens[0].range }],
+    errors: [{ code: 'ParseError', message: 'expected: <type> <id> "<value>"', file, range: tokens[0].range }],
   }
 }

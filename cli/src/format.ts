@@ -6,7 +6,7 @@ import { renderValue } from './search.js'
 export function stmtToJson(stmt: IndexedStatement) {
   return {
     id: stmt.id,
-    type: stmt.statementType ?? null,
+    type: stmt.statementType,
     value: renderValue(stmt.value),
     file: stmt.file,
   }
@@ -99,8 +99,7 @@ export function formatIndex(index: KnowledgeIndex, typeFilter?: string): string 
     lines.push('  (none)')
   } else {
     for (const s of stmts) {
-      const type = s.statementType ? `[${s.statementType}]` : '[untyped]'
-      lines.push(`  ${s.id.padEnd(24)} ${type.padEnd(18)} ${s.file}`)
+      lines.push(`  ${s.id.padEnd(24)} [${s.statementType}]`.padEnd(44) + ` ${s.file}`)
     }
   }
 
@@ -111,7 +110,7 @@ export function formatQueryResult(id: string, stmt: IndexedStatement | undefined
   if (!stmt) return `error: no statement with id '${id}'`
   return [
     `id:    ${stmt.id}`,
-    `type:  ${stmt.statementType ?? '(untyped)'}`,
+    `type:  ${stmt.statementType}`,
     `file:  ${stmt.file}`,
     `value: ${renderValue(stmt.value)}`,
   ].join('\n')
@@ -119,10 +118,9 @@ export function formatQueryResult(id: string, stmt: IndexedStatement | undefined
 
 export function formatSearchResults(stmts: IndexedStatement[], query: string): string {
   if (stmts.length === 0) return `no results for '${query}'`
-  return stmts.map(s => {
-    const type = s.statementType ? `[${s.statementType}]` : '[untyped]'
-    return `  ${s.id.padEnd(24)} ${type.padEnd(18)} ${renderValue(s.value)}`
-  }).join('\n')
+  return stmts.map(s =>
+    `  ${s.id.padEnd(24)} [${s.statementType}]`.padEnd(44) + ` ${renderValue(s.value)}`
+  ).join('\n')
 }
 
 export function formatRefs(id: string, refs: IndexedStatement[], mode: 'statement' | 'type'): string {
@@ -132,9 +130,8 @@ export function formatRefs(id: string, refs: IndexedStatement[], mode: 'statemen
   if (refs.length === 0) return `${header}\n  (none)`
   return [
     header,
-    ...refs.map(s => {
-      const type = s.statementType ? `[${s.statementType}]` : '[untyped]'
-      return `  ${s.id.padEnd(24)} ${type.padEnd(18)} ${renderValue(s.value)}`
-    }),
+    ...refs.map(s =>
+      `  ${s.id.padEnd(24)} [${s.statementType}]`.padEnd(44) + ` ${renderValue(s.value)}`
+    ),
   ].join('\n')
 }

@@ -39,9 +39,10 @@ describe('parseLine', () => {
     })
   })
 
-  it('parses an untyped statement', () => {
-    const { declaration } = parse('df131 "some value"')
-    expect(declaration).toMatchObject({ kind: 'statement', statementType: null, id: 'df131' })
+  it('returns ParseError for untyped statement', () => {
+    const { declaration, errors } = parse('df131 "some value"')
+    expect(declaration).toBeNull()
+    expect(errors[0].code).toBe('ParseError')
   })
 
   it('strips inline comment and does not affect declaration', () => {

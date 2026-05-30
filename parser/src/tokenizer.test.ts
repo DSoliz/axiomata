@@ -24,13 +24,6 @@ describe('tokenizeLine', () => {
     expect(tokens[2]).toMatchObject({ kind: 'QuotedString', value: 'a recorded decision' })
   })
 
-  it('tokenizes an untyped statement', () => {
-    const tokens = tokenizeLine('df131 "value"', 0)
-    expect(tokens).toHaveLength(2)
-    expect(tokens[0]).toMatchObject({ kind: 'Identifier', value: 'df131' })
-    expect(tokens[1]).toMatchObject({ kind: 'QuotedString', value: 'value' })
-  })
-
   it('tokenizes a typed statement', () => {
     const tokens = tokenizeLine('decision a1 "val"', 0)
     expect(tokens).toHaveLength(3)

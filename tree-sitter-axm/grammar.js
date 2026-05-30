@@ -19,18 +19,11 @@ module.exports = grammar({
       field('description', $.string),
     ),
 
-    // typed:   <type> <id> "<value>"
-    // untyped: <id> "<value>"
-    statement: $ => choice(
-      seq(
-        field('type', $.identifier),
-        field('id', $.identifier),
-        field('value', $.string),
-      ),
-      seq(
-        field('id', $.identifier),
-        field('value', $.string),
-      ),
+    // <type> <id> "<value>"
+    statement: $ => seq(
+      field('type', $.identifier),
+      field('id', $.identifier),
+      field('value', $.string),
     ),
 
     identifier: $ => /[a-zA-Z][a-zA-Z0-9_-]*/,

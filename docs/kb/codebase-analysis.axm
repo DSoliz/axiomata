@@ -14,7 +14,7 @@ domain-term knowledge-base "a directory of .axm files sharing a single flat name
 domain-term statement "a typed, named entry with a string value — the basic unit stored in a @knowledge-base"
 domain-term type-declaration "a named category statements can belong to, declared via the type keyword"
 domain-term reference "an at-prefixed id token inside a @statement value that points to another @statement"
-domain-term canonical-form "the storage form [type] id \"value\" — the only form written to disk by tools"
+domain-term canonical-form "the storage form: type id \"value\" — the only form written to disk by tools; type is always required"
 
 // ── Components ───────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ decision pnpm-workspace-with-turbo "use pnpm workspaces + Turbo for the monorepo
 decision four-package-split "split the system into @core (types), @parser (logic), @cli (binary), @lsp (server) — @core has no runtime code, just types, so it can be a dependency without coupling"
 decision two-pass-indexing "indexing is two passes: first collect all declarations, then resolve references — this is what lets a statement forward-reference another statement in any file regardless of order"
 decision tokenize-per-line "the tokenizer operates one line at a time — a statement cannot span multiple lines, which keeps the grammar trivially recoverable from any single parse error"
-decision type-as-prefix "the type name is written directly as the first token of a statement ([type] id \"value\") rather than as stmt:type — eliminates the stmt keyword; type is the only reserved word"
+decision type-as-prefix "the type name is written directly as the first token of a statement (type id \"value\") rather than as stmt:type — eliminates the stmt keyword; type is required and is the only reserved word"
 decision auto-generated-ids "axm add generates short hex IDs like s3f1a by default so authors do not have to invent unique names for ephemeral statements — serves @low-friction-authoring. Descriptive slugs (e.g. tenant, pg-jsonb) are reserved for things meant to be referenced by name"
 decision rename-via-tokenizer "axm rename re-tokenizes each affected line and edits by Range rather than doing text find-replace — avoids accidentally rewriting an id that appears inside a string value or comment"
 decision lsp-rebuild-on-change "the LSP rebuilds the entire knowledge index on every document change AND after each batch of @cross-file-watching events, rather than doing incremental updates — fine at current scale, see @incremental-indexing-needed"

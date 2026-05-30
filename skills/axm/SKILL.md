@@ -15,11 +15,10 @@ type decision "a recorded architectural or product decision"
 type unknown  "an open question or unresolved matter"
 type domain-term "a named concept in the domain vocabulary"
 
-// [type] <id> "<value>"
+// <type> <id> "<value>"
 decision a1 "we will only serve @fast-restaurant food"
 decision a2 "because of @a1 the website needs an order-ahead feature"
 unknown  u2 "should the @fast-restaurant model apply to catering orders too"
-plain1 "untyped statement"
 ```
 
 - `@id` references link statements inline
@@ -88,7 +87,7 @@ Returns `{ files: N, errors: [...] }`. Exit code 1 if there are errors.
 ## Reading the output
 
 - `value` is the full statement text with `@references` rendered inline
-- `type` is `null` for untyped statements
+- `type` is always a string — every statement must have a type
 - `file` is the absolute path to the `.axm` file containing the statement
 - Search results are ordered best-match first
 

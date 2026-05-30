@@ -57,8 +57,13 @@ export async function addCommand(
     id = generateId(existingIds)
   }
 
+  if (!opts.type) {
+    console.error('error: --type is required')
+    process.exit(1)
+  }
+
   const targetFile = await resolveTargetFile(dir, opts.file)
-  const line = opts.type ? `${opts.type} ${id} "${escapeValue(value)}"` : `${id} "${escapeValue(value)}"`
+  const line = `${opts.type} ${id} "${escapeValue(value)}"`
 
   // Append with a leading newline only if the file doesn't already end with one
   const existing = await readFile(targetFile, 'utf-8')
@@ -66,7 +71,7 @@ export async function addCommand(
   await appendFile(targetFile, `${prefix}${line}\n`, 'utf-8')
 
   if (opts.json) {
-    console.log(JSON.stringify({ id, type: opts.type ?? null, value, file: targetFile }, null, 2))
+    console.log(JSON.stringify({ id, type: opts.type, value, file: targetFile }, null, 2))
   } else {
     console.log(`added: ${line}`)
     console.log(`file:  ${targetFile}`)
