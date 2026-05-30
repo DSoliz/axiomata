@@ -3,5 +3,8 @@ packages:
   - 'parser'
   - 'lsp'
   - 'cli'
+  - 'vscode-extension'
 allowBuilds:
+  '@vscode/vsce-sign': true
   esbuild: true
+  keytar: true

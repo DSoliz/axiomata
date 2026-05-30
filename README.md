@@ -27,7 +27,8 @@ stmt:unknown     jsonb-evolution "how do we evolve the @pg-jsonb schema once @te
 | `parser` | Tokenizer, line parser, file parser, indexer |
 | `cli` | `axm` command-line tool |
 | `lsp` | Language server (diagnostics, hover, completions) |
-| `tree-sitter-axm` | Tree-sitter grammar for syntax highlighting |
+| `vscode-extension` | VS Code extension (bundles the LSP, TextMate grammar) |
+| `tree-sitter-axm` | Tree-sitter grammar for Helix and other tree-sitter editors |
 
 ## Getting started
 
@@ -113,7 +114,31 @@ axm rename auth-jwt jwt-decision ./my-kb
 
 ## Editor setup
 
-The LSP (`axiomata-lsp`) speaks standard Language Server Protocol over stdio, so any LSP-capable editor can use it. Point your editor at the `axiomata-lsp` command and associate it with the `axm` file type.
+The LSP speaks standard Language Server Protocol over stdio, so any LSP-capable editor can use it.
+
+### VS Code
+
+The `vscode-extension` package bundles the language server — no separate `axiomata-lsp` install needed.
+
+**Install from a local build:**
+
+1. Build and package the extension:
+
+   ```sh
+   cd vscode-extension
+   pnpm build
+   pnpm package
+   ```
+
+2. Install the `.vsix`:
+
+   ```sh
+   code --install-extension axiomata-vscode-0.1.0.vsix
+   ```
+
+   If `code` isn't on your PATH, run **Shell Command: Install 'code' command in PATH** from the Command Palette first. Alternatively, open the Command Palette (`Cmd+Shift+P`) and run **Extensions: Install from VSIX...** to pick the file manually.
+
+On first open of any `.axm` file the extension activates automatically and starts the bundled language server. It provides syntax highlighting, diagnostics, hover on `@id` references, completions after `stmt:` and `@`, go-to-definition, find references, and rename symbol. Cross-file changes from outside the editor flow in without a manual reload.
 
 ### Helix
 
@@ -181,7 +206,7 @@ alias axm-dev='node /abs/path/to/axiomata/cli/dist/index.js'
 
 `pnpm add -g ./cli` *copies* the package into pnpm's global store — every code change otherwise needs a rebuild plus a reinstall to update the global `axm` binary.
 
-**Fast iteration on the LSP** — point your editor at the local build so only the editor's `:lsp-restart` is needed between edits:
+**Fast iteration on the LSP (Helix)** — point your editor at the local build so only `:lsp-restart` is needed between edits:
 
 ```toml
 [language-server.axiomata-lsp]
@@ -189,7 +214,13 @@ command = "node"
 args = ["/abs/path/to/axiomata/lsp/dist/index.js"]
 ```
 
-After each `pnpm build`, run `:lsp-restart` (Helix) or your editor's equivalent to pick up the new server. Same global-install caveat as the CLI applies — `pnpm add -g ./lsp` copies, so the global binary is stale until you reinstall.
+After each `pnpm build`, run `:lsp-restart` to pick up the new server. Same global-install caveat as the CLI applies — `pnpm add -g ./lsp` copies, so the global binary is stale until you reinstall.
+
+**Fast iteration on the VS Code extension** — use the Extension Development Host instead of reinstalling the `.vsix`:
+
+1. Open `vscode-extension/` in VS Code.
+2. Press `F5` — this rebuilds and launches a second VS Code window with the extension loaded live.
+3. After code changes, run **Developer: Restart Extension Host** in that window (or re-press `F5`) to reload.
 
 **Before shipping**, verify the install path still works end-to-end:
 
