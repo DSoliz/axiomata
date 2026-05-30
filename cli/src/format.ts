@@ -4,6 +4,10 @@ import { renderValue } from './search.js'
 
 // ── JSON serialization ────────────────────────────────────────────────────────
 
+export function toJson(obj: unknown, min?: boolean): string {
+  return min ? JSON.stringify(obj) : JSON.stringify(obj, null, 2)
+}
+
 export function stmtToJson(stmt: IndexedStatement) {
   return {
     id: stmt.id,

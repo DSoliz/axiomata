@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { readdir, readFile, appendFile } from 'node:fs/promises'
 import { join, resolve, extname } from 'node:path'
 import { loadKnowledgeBase } from '../load-kb.js'
+import { toJson } from '../format.js'
 
 const ID_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/
 
@@ -35,7 +36,7 @@ function escapeValue(raw: string): string {
 export async function addCommand(
   value: string,
   dir = '.',
-  opts: { id?: string; type?: string; file?: string; json?: boolean } = {},
+  opts: { id?: string; type?: string; file?: string; json?: boolean; jsonMin?: boolean } = {},
 ): Promise<void> {
   // Validate user-supplied ID
   if (opts.id !== undefined && !ID_RE.test(opts.id)) {
@@ -70,8 +71,8 @@ export async function addCommand(
   const prefix = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
   await appendFile(targetFile, `${prefix}${line}\n`, 'utf-8')
 
-  if (opts.json) {
-    console.log(JSON.stringify({ id, type: opts.type, value, file: targetFile }, null, 2))
+  if (opts.json || opts.jsonMin) {
+    console.log(toJson({ id, type: opts.type, value, file: targetFile }, opts.jsonMin))
   } else {
     console.log(`added: ${line}`)
     console.log(`file:  ${targetFile}`)

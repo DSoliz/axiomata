@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { loadKnowledgeBase } from '../load-kb.js'
+import { toJson } from '../format.js'
 import { tokenizeLine } from '@axiomata/parser'
 
 const ID_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/
@@ -29,11 +30,11 @@ export async function renameCommand(
   oldName: string,
   newName: string,
   dir = '.',
-  opts: { json?: boolean } = {},
+  opts: { json?: boolean; jsonMin?: boolean } = {},
 ): Promise<void> {
   if (oldName === newName) {
-    if (opts.json) {
-      console.log(JSON.stringify({ oldName, newName, files: 0, edits: 0 }, null, 2))
+    if (opts.json || opts.jsonMin) {
+      console.log(toJson({ oldName, newName, files: 0, edits: 0 }, opts.jsonMin))
     } else {
       console.log('nothing to do: old and new names are the same')
     }
@@ -51,8 +52,8 @@ export async function renameCommand(
   const isType = kb.index.types.has(oldName)
 
   if (!isStmt && !isType) {
-    if (opts.json) {
-      console.log(JSON.stringify({ error: `'${oldName}' not found as a statement id or type name` }, null, 2))
+    if (opts.json || opts.jsonMin) {
+      console.log(toJson({ error: `'${oldName}' not found as a statement id or type name` }, opts.jsonMin))
     } else {
       console.error(`error: '${oldName}' not found as a statement id or type name`)
     }
@@ -125,8 +126,8 @@ export async function renameCommand(
   }
 
   const fileCount = editsByFile.size
-  if (opts.json) {
-    console.log(JSON.stringify({ oldName, newName, kind: isStmt ? 'statement' : 'type', files: fileCount, edits: totalEdits }, null, 2))
+  if (opts.json || opts.jsonMin) {
+    console.log(toJson({ oldName, newName, kind: isStmt ? 'statement' : 'type', files: fileCount, edits: totalEdits }, opts.jsonMin))
   } else {
     console.log(`renamed: ${oldName} → ${newName}`)
     console.log(`changed: ${totalEdits} occurrence${totalEdits !== 1 ? 's' : ''} across ${fileCount} file${fileCount !== 1 ? 's' : ''}`)
