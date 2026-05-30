@@ -1,0 +1,5 @@
+type task "a concrete implementation step — small enough to complete in one sitting"
+type spike "a time-boxed investigation to reduce uncertainty before committing to an approach"
+type discussion "a topic that requires a synchronous conversation before work can proceed"
+type risk "something that could derail or delay the plan — distinct from a constraint (fixed limit) or unknown (open question)"
+type milestone "a notable checkpoint or deliverable that marks meaningful progress"

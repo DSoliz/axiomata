@@ -29,10 +29,58 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { parseFile, buildIndex, tokenizeLine } from '@axiomata/parser';
 import type { SourceFile, AxmError, Range as AxmRange, ValueSegment, KnowledgeIndex } from '@axiomata/core';
 import { readdir, readFile } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { join, extname, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import chokidar from 'chokidar';
 import type { FSWatcher } from 'chokidar';
+
+interface AxmConfig {
+  include?: string[]
+  exclude?: string[]
+  import?: string
+}
+
+function globToRegex(pattern: string): RegExp {
+  let result = ''
+  let i = 0
+  while (i < pattern.length) {
+    const ch = pattern[i]
+    if (ch === '*') {
+      if (pattern[i + 1] === '*') {
+        if (pattern[i + 2] === '/') {
+          result += '(?:[^/]+/)*'
+          i += 3
+        } else {
+          result += '.*'
+          i += 2
+        }
+      } else {
+        result += '[^/]*'
+        i += 1
+      }
+    } else if ('.+^${}()|[]\\'.includes(ch)) {
+      result += '\\' + ch
+      i += 1
+    } else {
+      result += ch
+      i += 1
+    }
+  }
+  return new RegExp(`^${result}$`)
+}
+
+function matchesGlob(entry: string, pattern: string): boolean {
+  return globToRegex(pattern).test(entry)
+}
+
+async function resolveFiles(root: string, include: string[], exclude: string[] = []): Promise<string[]> {
+  const recursive = include.some(p => p.includes('**'))
+  const entries = (await readdir(root, { recursive })) as string[]
+  return entries
+    .filter(e => include.some(p => matchesGlob(e, p)) && !exclude.some(p => matchesGlob(e, p)))
+    .map(e => join(root, e))
+    .sort()
+}
 
 const connection = createConnection(ProposedFeatures.all, process.stdin, process.stdout);
 export const documents = new TextDocuments(TextDocument);
@@ -40,6 +88,21 @@ export const documents = new TextDocuments(TextDocument);
 export const sourceFiles = new Map<string, SourceFile>();
 const parseErrorsByUri = new Map<string, AxmError[]>();
 export let currentIndex: KnowledgeIndex = { types: new Map(), statements: new Map() };
+
+// Global KB state — populated when axmconfig.json has an "import" field.
+export const globalSourceFiles = new Map<string, SourceFile>();
+export let currentGlobalIndex: KnowledgeIndex = { types: new Map(), statements: new Map() };
+// When non-empty, restricts which URIs are treated as local (config mode).
+// When empty, all sourceFiles are local (legacy mode).
+export const localUris = new Set<string>();
+
+function lookupStatement(id: string) {
+  return currentIndex.statements.get(id) ?? currentGlobalIndex.statements.get(id);
+}
+
+function lookupType(name: string) {
+  return currentIndex.types.get(name) ?? currentGlobalIndex.types.get(name);
+}
 
 function axmToLsp(range: AxmRange) {
   return {
@@ -91,11 +154,23 @@ function toDiagnostic(error: AxmError, forUri: string): Diagnostic {
 }
 
 function rebuildIndex() {
-  const { index, errors: indexErrors } = buildIndex([...sourceFiles.values()]);
+  // Rebuild global index when in config mode.
+  if (globalSourceFiles.size > 0) {
+    currentGlobalIndex = buildIndex([...globalSourceFiles.values()]).index;
+  }
+
+  const localFiles = localUris.size > 0
+    ? [...sourceFiles.values()].filter(f => localUris.has(pathToFileURL(f.path).toString()))
+    : [...sourceFiles.values()];
+  const gi = globalSourceFiles.size > 0 ? currentGlobalIndex : undefined;
+
+  const { index, errors: indexErrors } = buildIndex(localFiles, gi);
   currentIndex = index;
 
+  // Only report diagnostics for local files.
+  const reportableUris = localUris.size > 0 ? localUris : sourceFiles.keys();
   const errorsByUri = new Map<string, AxmError[]>();
-  for (const uri of sourceFiles.keys()) {
+  for (const uri of reportableUris) {
     errorsByUri.set(uri, [...(parseErrorsByUri.get(uri) ?? [])]);
   }
 
@@ -145,38 +220,136 @@ export async function handleWatchedFileChange(uri: string, type: FileChangeType)
   if (type === FileChangeType.Deleted) {
     if (!sourceFiles.has(uri)) return false;
     removeFromIndex(uri);
+    localUris.delete(uri);
     return true;
   }
 
   try {
     const content = await readFile(fileURLToPath(uri), 'utf-8');
     indexDocument(uri, content);
+    if (localUris.size > 0) localUris.add(uri);
     return true;
   } catch {
     if (sourceFiles.has(uri)) {
       removeFromIndex(uri);
+      localUris.delete(uri);
       return true;
     }
     return false;
   }
 }
 
-async function scanWorkspace(folderUri: string) {
-  const folderPath = fileURLToPath(folderUri);
+async function scanGlobalKb(dir: string, seen: Set<string>): Promise<void> {
+  let config: AxmConfig | null = null;
+  const configPath = join(dir, 'axmconfig.json');
   try {
-    const entries = (await readdir(folderPath, { encoding: 'utf8', recursive: true })) as string[];
-    await Promise.all(
-      entries
-        .filter(e => extname(e) === '.axm')
-        .map(async rel => {
-          const filePath = join(folderPath, rel);
-          const content = await readFile(filePath, 'utf-8');
-          indexDocument(pathToFileURL(filePath).toString(), content);
-        })
-    );
-  } catch {
-    // non-fatal — editor may not have a workspace folder
+    config = JSON.parse(await readFile(configPath, 'utf-8')) as AxmConfig;
+  } catch {}
+
+  if (config?.import) {
+    const importedPath = resolve(dir, config.import);
+    if (!seen.has(importedPath)) {
+      await scanGlobalKb(dirname(importedPath), new Set([...seen, configPath]));
+    }
   }
+
+  const include = config?.include ?? ['*.axm'];
+  const exclude = config?.exclude ?? [];
+  try {
+    const axmPaths = config
+      ? await resolveFiles(dir, include, exclude)
+      : (await readdir(dir, { recursive: true }) as string[]).filter(e => e.endsWith('.axm')).map(e => join(dir, e));
+
+    await Promise.all(axmPaths.map(async filePath => {
+      const uri = pathToFileURL(filePath).toString();
+      const content = await readFile(filePath, 'utf-8');
+      const { file } = parseFile(content, filePath);
+      globalSourceFiles.set(uri, file);
+    }));
+  } catch {}
+}
+
+// Returns the global KB root path if an import was configured, otherwise undefined.
+async function scanWorkspace(folderUri: string): Promise<string | undefined> {
+  const folderPath = fileURLToPath(folderUri);
+
+  let config: AxmConfig | null = null;
+  try {
+    config = JSON.parse(await readFile(join(folderPath, 'axmconfig.json'), 'utf-8')) as AxmConfig;
+  } catch {}
+
+  if (!config) {
+    // Legacy: load all *.axm recursively, no global split.
+    try {
+      const entries = (await readdir(folderPath, { encoding: 'utf8', recursive: true })) as string[];
+      await Promise.all(
+        entries
+          .filter(e => extname(e) === '.axm')
+          .map(async rel => {
+            const filePath = join(folderPath, rel);
+            const content = await readFile(filePath, 'utf-8');
+            indexDocument(pathToFileURL(filePath).toString(), content);
+          })
+      );
+    } catch {}
+    return undefined;
+  }
+
+  let globalKbRoot: string | undefined;
+  if (config.import) {
+    const importedConfigPath = resolve(folderPath, config.import);
+    globalKbRoot = dirname(importedConfigPath);
+    await scanGlobalKb(globalKbRoot, new Set([join(folderPath, 'axmconfig.json')]));
+  }
+
+  const include = config.include ?? ['*.axm'];
+  const exclude = config.exclude ?? [];
+  try {
+    const axmPaths = await resolveFiles(folderPath, include, exclude);
+    await Promise.all(axmPaths.map(async filePath => {
+      const uri = pathToFileURL(filePath).toString();
+      localUris.add(uri);
+      const content = await readFile(filePath, 'utf-8');
+      indexDocument(uri, content);
+    }));
+  } catch {}
+
+  return globalKbRoot;
+}
+
+function startGlobalFsWatcher(globalRoot: string): FSWatcher {
+  const watcher = chokidar.watch('**/*.axm', {
+    cwd: globalRoot,
+    ignored: ['**/node_modules/**', '**/.git/**'],
+    ignoreInitial: true,
+    awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
+  });
+
+  const dispatch = (type: FileChangeType) => async (relPath: string) => {
+    const filePath = join(globalRoot, relPath);
+    const uri = pathToFileURL(filePath).toString();
+    if (documents.get(uri)) return; // editor-owned — skip
+
+    let changed = false;
+    if (type === FileChangeType.Deleted) {
+      if (globalSourceFiles.has(uri)) { globalSourceFiles.delete(uri); changed = true; }
+    } else {
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const { file } = parseFile(content, filePath);
+        globalSourceFiles.set(uri, file);
+        changed = true;
+      } catch {
+        if (globalSourceFiles.has(uri)) { globalSourceFiles.delete(uri); changed = true; }
+      }
+    }
+    if (changed) rebuildIndex();
+  };
+
+  watcher.on('add', dispatch(FileChangeType.Created));
+  watcher.on('change', dispatch(FileChangeType.Changed));
+  watcher.on('unlink', dispatch(FileChangeType.Deleted));
+  return watcher;
 }
 
 connection.onInitialize((_params: InitializeParams): InitializeResult => ({
@@ -215,10 +388,13 @@ function startFsWatcher(folderPath: string): FSWatcher {
 connection.onInitialized(async () => {
   const folders = await connection.workspace.getWorkspaceFolders();
   if (folders?.length) {
-    await Promise.all(folders.map(f => scanWorkspace(f.uri)));
+    const globalRoots = await Promise.all(folders.map(f => scanWorkspace(f.uri)));
     rebuildIndex();
     for (const folder of folders) {
       fsWatchers.push(startFsWatcher(fileURLToPath(folder.uri)));
+    }
+    for (const globalRoot of globalRoots) {
+      if (globalRoot) fsWatchers.push(startGlobalFsWatcher(globalRoot));
     }
   }
   // Supplementary signal — works when the client honours it (e.g. VS Code).
@@ -261,7 +437,7 @@ connection.onHover((params: HoverParams): Hover | null => {
       if (seg.kind !== 'reference') continue;
       const r = seg.range;
       if (r.start.line === pos.line && r.start.character <= pos.character && pos.character <= r.end.character) {
-        const stmt = currentIndex.statements.get(seg.id);
+        const stmt = lookupStatement(seg.id);
         if (!stmt) return null;
         const typeLabel = stmt.statementType ? `*${stmt.statementType}*  ` : '';
         return {
@@ -340,17 +516,19 @@ connection.onReferences((params: ReferenceParams): Location[] => {
 
   const locations: Location[] = [];
 
+  const allFiles = [...sourceFiles.entries(), ...globalSourceFiles.entries()];
+
   if (resolved.kind === 'statement') {
     const { id } = resolved;
 
     if (params.context.includeDeclaration) {
-      const stmt = currentIndex.statements.get(id);
+      const stmt = lookupStatement(id);
       if (stmt) {
         locations.push({ uri: pathToFileURL(stmt.file).toString(), range: axmToLsp(stmt.range) });
       }
     }
 
-    for (const [uri, file] of sourceFiles) {
+    for (const [uri, file] of allFiles) {
       for (const decl of file.declarations) {
         if (decl.kind !== 'statement') continue;
         for (const seg of decl.value) {
@@ -364,13 +542,13 @@ connection.onReferences((params: ReferenceParams): Location[] => {
     const { name } = resolved;
 
     if (params.context.includeDeclaration) {
-      const type = currentIndex.types.get(name);
+      const type = lookupType(name);
       if (type) {
         locations.push({ uri: pathToFileURL(type.file).toString(), range: axmToLsp(type.range) });
       }
     }
 
-    for (const [uri, file] of sourceFiles) {
+    for (const [uri, file] of allFiles) {
       for (const decl of file.declarations) {
         if (decl.kind === 'statement' && decl.statementType === name) {
           locations.push({ uri, range: axmToLsp(decl.range) });
@@ -392,7 +570,7 @@ connection.onCompletion((params: CompletionParams): CompletionItem[] => {
   });
 
   if (/^[\w-]*$/.test(lineUpToCursor)) {
-    return [...currentIndex.types.values()].map(t => ({
+    return [...currentIndex.types.values(), ...currentGlobalIndex.types.values()].map(t => ({
       label: t.name,
       kind: CompletionItemKind.EnumMember,
       detail: t.description,
@@ -400,7 +578,7 @@ connection.onCompletion((params: CompletionParams): CompletionItem[] => {
   }
 
   if (/@[\w-]*$/.test(lineUpToCursor)) {
-    return [...currentIndex.statements.values()].map(s => ({
+    return [...currentIndex.statements.values(), ...currentGlobalIndex.statements.values()].map(s => ({
       label: s.id,
       kind: CompletionItemKind.Reference,
       detail: s.statementType ?? undefined,
@@ -416,12 +594,12 @@ export function handleDefinition(params: DefinitionParams): Location | null {
   if (!resolved) return null;
 
   if (resolved.kind === 'statement') {
-    const stmt = currentIndex.statements.get(resolved.id);
+    const stmt = lookupStatement(resolved.id);
     if (stmt) {
       return { uri: pathToFileURL(stmt.file).toString(), range: axmToLsp(stmt.range) };
     }
   } else if (resolved.kind === 'type') {
-    const type = currentIndex.types.get(resolved.name);
+    const type = lookupType(resolved.name);
     if (type) {
       return { uri: pathToFileURL(type.file).toString(), range: axmToLsp(type.range) };
     }
@@ -454,6 +632,9 @@ export async function handlePrepareRename(
   if (resolved.kind === 'statement') {
     const { id } = resolved;
 
+    // Block rename when the declaration lives only in the imported global KB.
+    if (!currentIndex.statements.has(id) && currentGlobalIndex.statements.has(id)) return null;
+
     // Reference segment (@id) — the AST already has its exact range; skip the leading '@'
     if (sourceFile) {
       for (const decl of sourceFile.declarations) {
@@ -481,6 +662,9 @@ export async function handlePrepareRename(
     }
   } else {
     const { name } = resolved;
+
+    // Block rename when the type lives only in the imported global KB.
+    if (!currentIndex.types.has(name) && currentGlobalIndex.types.has(name)) return null;
 
     // type-name usage — find the type identifier (first token) on a typed statement line
     if (sourceFile) {

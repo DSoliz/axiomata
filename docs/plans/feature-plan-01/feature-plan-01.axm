@@ -1,0 +1,18 @@
+// Plan: implement textDocument/documentSymbol in the LSP
+// Adds file outline and breadcrumb support to editor integrations.
+// Global KB is imported read-only — types (goal, decision, …) and all
+// @references below resolve against docs/kb.
+
+goal plan-goal "add textDocument/documentSymbol to @lsp so editors can display a .axm file outline without a full cross-file references round-trip"
+
+decision handler-location "register the documentSymbol handler in @lsp alongside the existing hover and completion handlers — consistent with @share-the-pipeline"
+decision data-source "walk the existing sourceFiles entry for the open document rather than re-parsing — the AST is already built on every change per @lsp-rebuild-on-change"
+decision symbol-kinds "map type declarations to SymbolKind.Struct and statements to SymbolKind.Variable — closest standard LSP kinds to the axm concepts without overloading Class"
+decision flat-symbol-list "return a flat DocumentSymbol list rather than a tree — statements do not nest under their type declarations in the grammar, so a hierarchy would be synthetic"
+
+unknown detail-field "should the DocumentSymbol detail field show the statement value truncated to N chars, or the type name — value is more useful for navigation but may be noisy for long entries"
+
+constraint lsp-spec-range "each DocumentSymbol requires a range and a selectionRange; use the full line range for range and the id-token range for selectionRange — both are available in the SourceFile AST"
+constraint local-file-only "documentSymbol covers only the currently open file; statements from the imported global KB are intentionally excluded — they are navigable via go-to-definition"
+
+assumption single-file-scope "all data needed is in the sourceFiles entry for the open URI — no index rebuild or cross-file scan required, so latency is negligible"

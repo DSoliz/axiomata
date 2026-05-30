@@ -52,16 +52,22 @@ export async function renameCommand(
   const isType = kb.index.types.has(oldName)
 
   if (!isStmt && !isType) {
+    const inGlobal = kb.globalIndex?.statements.has(oldName) || kb.globalIndex?.types.has(oldName)
+    const msg = inGlobal
+      ? `'${oldName}' is defined in the global KB and cannot be renamed from here`
+      : `'${oldName}' not found as a statement id or type name`
     if (opts.json || opts.jsonMin) {
-      console.log(toJson({ error: `'${oldName}' not found as a statement id or type name` }, opts.jsonMin))
+      console.log(toJson({ error: msg }, opts.jsonMin))
     } else {
-      console.error(`error: '${oldName}' not found as a statement id or type name`)
+      console.error(`error: ${msg}`)
     }
     return process.exit(1)
   }
 
-  // Check the new name doesn't already exist
-  if ((isStmt && kb.index.statements.has(newName)) || (isType && kb.index.types.has(newName))) {
+  // Check the new name doesn't already exist locally or in the global KB.
+  const newExistsLocally = (isStmt && kb.index.statements.has(newName)) || (isType && kb.index.types.has(newName))
+  const newExistsGlobally = (isStmt && kb.globalIndex?.statements.has(newName)) || (isType && kb.globalIndex?.types.has(newName))
+  if (newExistsLocally || newExistsGlobally) {
     console.error(`error: '${newName}' already exists`)
     return process.exit(1)
   }

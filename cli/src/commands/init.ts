@@ -1,6 +1,8 @@
 import { readdir, writeFile } from 'node:fs/promises'
 import { join, resolve, extname } from 'node:path'
 
+const CONFIG_TEMPLATE = JSON.stringify({ include: ['*.axm'] }, null, 2) + '\n'
+
 const TEMPLATE = `\
 // Knowledge base — created by axm init
 // Add statements below using: axm add "<value>" --type <type>
@@ -30,12 +32,17 @@ export async function initCommand(dir = '.', opts: { json?: boolean } = {}): Pro
   }
 
   const filePath = join(root, 'types.axm')
-  await writeFile(filePath, TEMPLATE, 'utf-8')
+  const configPath = join(root, 'axmconfig.json')
+  await Promise.all([
+    writeFile(filePath, TEMPLATE, 'utf-8'),
+    writeFile(configPath, CONFIG_TEMPLATE, 'utf-8'),
+  ])
 
   if (opts.json) {
-    console.log(JSON.stringify({ file: filePath, types: ['goal', 'decision', 'unknown', 'constraint', 'assumption', 'principle', 'domain-term'] }, null, 2))
+    console.log(JSON.stringify({ file: filePath, config: configPath, types: ['goal', 'decision', 'unknown', 'constraint', 'assumption', 'principle', 'domain-term'] }, null, 2))
   } else {
     console.log(`created: ${filePath}`)
+    console.log(`created: ${configPath}`)
     console.log('types:   goal, decision, unknown, constraint, assumption, principle, domain-term')
   }
 }

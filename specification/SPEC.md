@@ -112,7 +112,7 @@ A literal `"` inside a value string is escaped as `\"`.
 
 ## 6. Global Index
 
-All statements declared across all `.axm` files in a knowledge base share a single flat namespace. There are no explicit imports. A tool (CLI, LSP, build step) is responsible for indexing the collection.
+All statements declared across all `.axm` files in a knowledge base share a single flat namespace. A tool (CLI, LSP, build step) is responsible for indexing the collection.
 
 Processing is two-pass:
 1. **Index pass** — scan every file, collect all type declarations and statement IDs
@@ -127,7 +127,60 @@ This means a file can reference a statement declared in any other file regardles
 
 ---
 
-## 7. Error Cases
+## 7. KB Configuration
+
+A knowledge base may include an `axmconfig.json` file at its root to control which files belong to it and whether it imports another KB.
+
+```json
+{
+  "include": ["*.axm"],
+  "import": "../axmconfig.json"
+}
+```
+
+### Fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `include` | `string[]` | `["*.axm"]` | Glob patterns selecting which `.axm` files belong to this KB. Relative to the config file. Supports `*.axm` (current directory only) and `**/*.axm` (recursive). |
+| `exclude` | `string[]` | `[]` | Glob patterns for files or directories to exclude. Applied after `include`. Useful for omitting plan subdirectories or `node_modules` when the KB root is also a project root. |
+| `import` | `string` | — | Path to another `axmconfig.json`. Statements and types from the referenced KB become available for reference resolution, but are not owned by this KB. Only one import per config is supported. |
+
+When no `axmconfig.json` is present, the tool falls back to scanning all `.axm` files recursively from the given directory.
+
+### Import semantics
+
+- Imported statements and types are **readable** — they can be referenced with `@id` without producing an `UnresolvedReference` error.
+- Imported statements and types are **read-only** — declaring a statement or type with the same ID as an imported one is a `DuplicateId` / `DuplicateType` error.
+- Imports are **transitive** — if the imported KB itself has an import, those statements are also available.
+- Circular imports produce a hard error.
+
+### Plan pattern
+
+Plans are scoped KBs that build on a shared global KB. Each plan lives in its own directory with its own `axmconfig.json`. Use `axm init-plan` to scaffold one:
+
+```sh
+axm init-plan "my feature" docs/plans --import docs/kb/axmconfig.json
+# creates: docs/plans/2026-05-30abc-my-feature/
+#            axmconfig.json   ← imports the global KB
+#            plan.axm
+#            types.axm        ← planning-specific types (task, spike, discussion, risk, milestone)
+```
+
+The global KB's `axmconfig.json` should exclude the plans directory so plan statements don't leak into the global namespace:
+
+```json
+{
+  "include": ["**/*.axm"],
+  "exclude": ["plans/**"]
+}
+```
+
+Plan statements can reference global IDs with `@id` and use global types. Plan IDs do not appear in the global namespace. Plans do not share a namespace with each other — each plan directory is its own independent KB.
+
+---
+
+## 8. Error Cases
 
 | Condition | Error |
 |---|---|
@@ -139,7 +192,7 @@ This means a file can reference a statement declared in any other file regardles
 
 ---
 
-## 8. Example Knowledge Base
+## 9. Example Knowledge Base
 
 ```
 types.axm
@@ -158,7 +211,7 @@ simple-use-case.axm
 
 ---
 
-## 9. Conventions
+## 10. Conventions
 
 - Keep type declarations in a shared `types.axm` file at the root of the knowledge base.
 - Keep domain vocabulary in `domain-language.axm` or a `domain/` directory.

@@ -10,14 +10,14 @@ type decision    "a recorded architectural or product decision"
 type unknown     "an open question or unresolved matter"
 type domain-term "a named concept in the shared vocabulary"
 
-// Statements: stmt[:type] <id> "<value>"
-stmt:domain-term tenant "an isolated customer account with its own data and settings"
-stmt:decision    pg-jsonb "we store per-@tenant settings in a single jsonb column rather than separate tables"
-stmt:decision    app-level-encryption "because of @pg-jsonb we encrypt sensitive @tenant fields at the application layer"
-stmt:unknown     jsonb-evolution "how do we evolve the @pg-jsonb schema once @tenant data is in production"
+// <type> <id> "<value>"
+domain-term tenant "an isolated customer account with its own data and settings"
+decision    pg-jsonb "we store per-@tenant settings in a single jsonb column rather than separate tables"
+decision    app-level-encryption "because of @pg-jsonb we encrypt sensitive @tenant fields at the application layer"
+unknown     jsonb-evolution "how do we evolve the @pg-jsonb schema once @tenant data is in production"
 ```
 
-`@id` references link statements. The entire knowledge base is a flat namespace across all `.axm` files in a directory — no imports needed.
+`@id` references link statements. All `.axm` files in a KB share one flat namespace.
 
 ## Packages
 
@@ -83,7 +83,29 @@ To start a new knowledge base in your project:
 axm init ./docs/kb
 ```
 
-This creates `types.axm` with seven recommended types: `goal`, `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`.
+This creates `types.axm` with seven recommended types (`goal`, `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`) and `axmconfig.json` with `{ "include": ["*.axm"] }`.
+
+### Plans
+
+For scoped work (a feature plan, a spike, an RFC) that needs access to global decisions without polluting them, use `axm init-plan`:
+
+```sh
+axm init-plan "my feature" docs/plans --import docs/kb/axmconfig.json
+```
+
+This creates a timestamped plan directory (e.g. `docs/plans/2026-05-30abc-my-feature/`) containing:
+
+- `axmconfig.json` — imports the global KB as read-only context
+- `plan.axm` — your plan statements
+- `types.axm` — planning-specific types: `task`, `spike`, `discussion`, `risk`, `milestone`
+
+Plan statements can reference global IDs with `@id` and use global types. Plan IDs stay scoped to the plan — they don't appear in the global namespace. Each plan directory is independent; plans don't share a namespace with each other.
+
+Add an `exclude` to the global KB's `axmconfig.json` so plans don't leak back into it:
+
+```json
+{ "include": ["**/*.axm"], "exclude": ["plans/**"] }
+```
 
 ## CLI
 
@@ -94,6 +116,7 @@ axm <command> [dir] [options]
 | Command | Description |
 |---|---|
 | `init [dir]` | Create `types.axm` with recommended default types |
+| `init-plan <name> [dir]` | Scaffold a plan directory with `plan.axm`, `types.axm`, and `axmconfig.json` |
 | `check [dir]` | Validate all `.axm` files |
 | `index [dir]` | List all types and statements |
 | `query <id> [dir]` | Look up a statement by ID |
