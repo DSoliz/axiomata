@@ -1,23 +1,38 @@
 # Axiomata
 
-A plain-text format for decision knowledge bases. Store architectural decisions, open questions, and domain vocabulary in `.axm` files — queryable by humans and agents alike.
+**A plain-text format for organizing knowledge**
+
+Every project lives in three layers: the thoughts you're carrying around, the decisions you've made, and the work still ahead. Most of it scatters across Slack threads, half-written docs, and your own memory. Axiomata holds all three in one short file — typed statements, linked by ID, in plain text you can grep, diff, and hand to an AI agent without ceremony.
+
+Here's an entire project captured in a single file — planning a 30th birthday dinner:
+
+```axm
+type goal       "what we're trying to achieve"
+type constraint "something we can't change"
+type decision   "a choice we've locked in"
+type unknown    "an open question"
+type task       "something still to do"
+
+goal       night     "throw a memorable 30th birthday dinner for Sam on June 28"
+constraint budget    "we have $400 total — venue, food, drinks"
+constraint guests    "10 people; two vegetarian, one gluten-free"
+
+decision   home      "host at Alex's place — fits @budget better than a restaurant"
+decision   menu      "Italian pasta bar — covers @guests easily"
+
+unknown    drinks    "BYO wine, or buy a few bottles ourselves"
+unknown    cake      "bake it, or order from the bakery on 4th"
+
+task       invites   "send the invites to all @guests by June 14"
+task       shopping  "grocery run for @menu the morning of June 28"
+task       playlist  "build a 3-hour playlist Sam would actually like"
+```
+
+Thoughts (`goal`, `constraint`), planning (`decision`, `unknown`), and execution (`task`) all live side-by-side. Every `@reference` is a live link — bump `@budget` to $500 and `axm refs budget` tells you exactly which decisions to revisit. Resolve `@drinks` once the answer is in and it gets converted into a `decision` in place. The same format scales from a dinner party to a multi-quarter product roadmap with the same syntax and the same `axm` commands.
 
 ## Format
 
-```axm
-// Declare named statement types
-type decision    "a recorded architectural or product decision"
-type unknown     "an open question or unresolved matter"
-type domain-term "a named concept in the shared vocabulary"
-
-// <type> <id> "<value>"
-domain-term tenant "an isolated customer account with its own data and settings"
-decision    pg-jsonb "we store per-@tenant settings in a single jsonb column rather than separate tables"
-decision    app-level-encryption "because of @pg-jsonb we encrypt sensitive @tenant fields at the application layer"
-unknown     jsonb-evolution "how do we evolve the @pg-jsonb schema once @tenant data is in production"
-```
-
-`@id` references link statements. All `.axm` files in a KB share one flat namespace.
+`<type> <id> "<value>"` is the basic shape. Declare types with `type <name> "<description>"` before using them. Reference any statement by its ID with `@id` — references are live links across every `.axm` file in the same knowledge base.
 
 ## Packages
 
