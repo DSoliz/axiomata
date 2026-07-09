@@ -22,7 +22,7 @@ unknown  u2 "should the @fast-restaurant model apply to catering orders too"
 ```
 
 - `@id` references link statements inline
-- All files in a directory share one flat namespace — no imports
+- All files in a KB share one flat namespace; an optional `axmconfig.json` can import a second KB as read-only context (see §7 of the spec)
 - `type` is the only reserved keyword — it cannot be used as a type name or statement id
 
 ## Workflow
@@ -31,7 +31,7 @@ unknown  u2 "should the @fast-restaurant model apply to catering orders too"
 ```
 axm init .
 ```
-Creates `types.axm` with seven recommended types: `goal`, `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`. Fails if `.axm` files already exist.
+Creates `types.axm` with seven recommended types and `axmconfig.json` with `{ "include": ["*.axm"] }`. Fails if `.axm` files already exist.
 
 **1. Orient — get file list and counts by type:**
 ```
@@ -70,7 +70,7 @@ When `--type` is used, the `types` array is automatically omitted from `index` o
 ```
 axm query <id> . --json
 ```
-Returns `{ id, type, value, file }` or `null` (exit 1) if not found.
+Returns `{ id, type, value, file }` or `null` (exit 1) if not found. In a KB with an `import`, also searches the global KB.
 
 **7. Find references to a statement or type:**
 ```

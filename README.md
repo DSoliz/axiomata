@@ -1,23 +1,38 @@
 # Axiomata
 
-A plain-text format for decision knowledge bases. Store architectural decisions, open questions, and domain vocabulary in `.axm` files — queryable by humans and agents alike.
+**A plain-text format for organizing knowledge**
+
+Every project lives in three layers: the thoughts you're carrying around, the decisions you've made, and the work still ahead. Most of it scatters across Slack threads, half-written docs, and your own memory. Axiomata holds all three in one short file — typed statements, linked by ID, in plain text you can grep, diff, and hand to an AI agent without ceremony.
+
+Here's an entire project captured in a single file — planning a 30th birthday dinner:
+
+```axm
+type goal       "what we're trying to achieve"
+type constraint "something we can't change"
+type decision   "a choice we've locked in"
+type unknown    "an open question"
+type task       "something still to do"
+
+goal       night     "throw a memorable 30th birthday dinner for Sam on June 28"
+constraint budget    "we have $400 total — venue, food, drinks"
+constraint guests    "10 people; two vegetarian, one gluten-free"
+
+decision   home      "host at Alex's place — fits @budget better than a restaurant"
+decision   menu      "Italian pasta bar — covers @guests easily"
+
+unknown    drinks    "BYO wine, or buy a few bottles ourselves"
+unknown    cake      "bake it, or order from the bakery on 4th"
+
+task       invites   "send the invites to all @guests by June 14"
+task       shopping  "grocery run for @menu the morning of June 28"
+task       playlist  "build a 3-hour playlist Sam would actually like"
+```
+
+Thoughts (`goal`, `constraint`), planning (`decision`, `unknown`), and execution (`task`) all live side-by-side. Every `@reference` is a live link — bump `@budget` to $500 and `axm refs budget` tells you exactly which decisions to revisit. Resolve `@drinks` once the answer is in and it gets converted into a `decision` in place. The same format scales from a dinner party to a multi-quarter product roadmap with the same syntax and the same `axm` commands.
 
 ## Format
 
-```axm
-// Declare named statement types
-type decision    "a recorded architectural or product decision"
-type unknown     "an open question or unresolved matter"
-type domain-term "a named concept in the shared vocabulary"
-
-// Statements: stmt[:type] <id> "<value>"
-stmt:domain-term tenant "an isolated customer account with its own data and settings"
-stmt:decision    pg-jsonb "we store per-@tenant settings in a single jsonb column rather than separate tables"
-stmt:decision    app-level-encryption "because of @pg-jsonb we encrypt sensitive @tenant fields at the application layer"
-stmt:unknown     jsonb-evolution "how do we evolve the @pg-jsonb schema once @tenant data is in production"
-```
-
-`@id` references link statements. The entire knowledge base is a flat namespace across all `.axm` files in a directory — no imports needed.
+`<type> <id> "<value>"` is the basic shape. Declare types with `type <name> "<description>"` before using them. Reference any statement by its ID with `@id` — references are live links across every `.axm` file in the same knowledge base.
 
 ## Packages
 
@@ -83,7 +98,29 @@ To start a new knowledge base in your project:
 axm init ./docs/kb
 ```
 
-This creates `types.axm` with seven recommended types: `goal`, `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`.
+This creates `types.axm` with seven recommended types (`goal`, `decision`, `unknown`, `constraint`, `assumption`, `principle`, `domain-term`) and `axmconfig.json` with `{ "include": ["*.axm"] }`.
+
+### Plans
+
+For scoped work (a feature plan, a spike, an RFC) that needs access to global decisions without polluting them, use `axm init-plan`:
+
+```sh
+axm init-plan "my feature" docs/plans --import docs/kb/axmconfig.json
+```
+
+This creates a timestamped plan directory (e.g. `docs/plans/2026-05-30abc-my-feature/`) containing:
+
+- `axmconfig.json` — imports the global KB as read-only context
+- `plan.axm` — your plan statements
+- `types.axm` — planning-specific types: `task`, `spike`, `discussion`, `risk`, `milestone`
+
+Plan statements can reference global IDs with `@id` and use global types. Plan IDs stay scoped to the plan — they don't appear in the global namespace. Each plan directory is independent; plans don't share a namespace with each other.
+
+Add an `exclude` to the global KB's `axmconfig.json` so plans don't leak back into it:
+
+```json
+{ "include": ["**/*.axm"], "exclude": ["plans/**"] }
+```
 
 ## CLI
 
@@ -94,6 +131,7 @@ axm <command> [dir] [options]
 | Command | Description |
 |---|---|
 | `init [dir]` | Create `types.axm` with recommended default types |
+| `init-plan <name> [dir]` | Scaffold a plan directory with `plan.axm`, `types.axm`, and `axmconfig.json` |
 | `check [dir]` | Validate all `.axm` files |
 | `index [dir]` | List all types and statements |
 | `query <id> [dir]` | Look up a statement by ID |

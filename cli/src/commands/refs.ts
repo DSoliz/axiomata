@@ -7,8 +7,8 @@ export async function refsCommand(id: string, dir = '.', opts: { json?: boolean;
   const root = resolve(dir)
   const kb = await loadKnowledgeBase(dir)
 
-  const isStmt = kb.index.statements.has(id)
-  const isType = kb.index.types.has(id)
+  const isStmt = kb.index.statements.has(id) || (kb.globalIndex?.statements.has(id) ?? false)
+  const isType = kb.index.types.has(id) || (kb.globalIndex?.types.has(id) ?? false)
 
   if (!isStmt && !isType) {
     if (opts.json || opts.jsonMin) {

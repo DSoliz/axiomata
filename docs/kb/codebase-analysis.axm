@@ -10,7 +10,7 @@ goal low-friction-authoring "recording a decision is cheap enough that authors d
 
 // ── Domain vocabulary ────────────────────────────────────────────────────────
 
-domain-term knowledge-base "a directory of .axm files sharing a single flat namespace of statements and types"
+domain-term knowledge-base "a directory of .axm files governed by an optional axmconfig.json; files within a KB share a single flat namespace, and the config can import a second KB whose statements are available for reference but not redeclaration"
 domain-term statement "a typed, named entry with a string value — the basic unit stored in a @knowledge-base"
 domain-term type-declaration "a named category statements can belong to, declared via the type keyword"
 domain-term reference "an at-prefixed id token inside a @statement value that points to another @statement"
@@ -20,17 +20,19 @@ domain-term canonical-form "the storage form: type id \"value\" — the only for
 
 component core "shared types and error definitions consumed by every other package — AST, KnowledgeIndex, AxmError, Range"
 component parser "stateless transformation pipeline — tokenizeLine → parseLine → parseFile → buildIndex"
-component cli "the axm command-line tool built on @core and @parser; commands live in cli/src/commands/"
+component cli "the axm command-line tool built on @core and @parser; commands live in cli/src/commands/; includes init, init-plan, check, index, query, search, add, refs, rename, summary"
 component lsp "the axiomata-lsp language server built on @core and @parser; serves diagnostics, hover, completion, go-to-def, references, rename"
 component tree-sitter-axm "tree-sitter grammar producing parser.c and queries/highlights.scm for editor syntax highlighting; sibling to the TS pipeline"
-component load-kb "cli/src/load-kb.ts — the orchestrator that walks a directory, parses every .axm file, and returns a built index plus collected errors"
+component axm-skill "skills/axm/SKILL.md — Claude Code slash command (/axm) that orients, searches, and queries a KB using the CLI; delivers @bridge-human-agent by giving agents the same query surface as humans"
+component axm-plan-skill "skills/axm-plan/SKILL.md — Claude Code slash command (/axm-plan) that interviews the user to populate a plan KB; drives toward goal, task, spike, discussion, risk, unknown, decision, milestone coverage; queries the global KB and codebase before asking the user"
+component load-kb "cli/src/load-kb.ts — reads axmconfig.json (include patterns, optional import), loads the imported global KB recursively as read-only context, parses local files, and passes both to @indexer; falls back to a recursive directory walk when no config is present"
 component indexer "parser/src/indexer.ts — runs the two-pass index/resolution algorithm and emits DuplicateId, DuplicateType, UnknownType, UnresolvedReference errors"
 
 // ── Principles ───────────────────────────────────────────────────────────────
 
 principle plain-text-first "the format is human-readable plain text and the CLI is the primary interface — every operation an LSP performs must also be reachable from the shell. This is what delivers @repo-native-knowledge: a .axm file is a normal text file, diffable in git like any other source"
 principle agent-readable "every CLI command accepts --json so AI agents can use the same operations humans do — the mechanism that delivers @bridge-human-agent"
-principle flat-namespace "all statements and types in a KB share one namespace across all files — no imports, no modules; this is what makes cross-file at-prefixed id references work transparently"
+principle flat-namespace "within a single KB, all statements and types share one namespace across all files — this is what makes cross-file @reference work transparently. Between KBs, namespaces are separate: an imported KB's statements resolve but cannot be redeclared"
 principle stateless-pipeline "@parser is a pure transformation chain — input text in, AST/index/errors out; no I/O, no globals. @load-kb is the only piece that touches the filesystem on the parser side"
 principle errors-as-data "parse and index errors are first-class data structures (the AxmError union in @core) with codes and ranges, not strings — @cli formats them for humans and @lsp converts them to LSP diagnostics"
 principle share-the-pipeline "the @lsp and @cli both consume the same @parser output; there is no separate parsing path for the language server"
@@ -45,9 +47,12 @@ decision type-as-prefix "the type name is written directly as the first token of
 decision auto-generated-ids "axm add generates short hex IDs like s3f1a by default so authors do not have to invent unique names for ephemeral statements — serves @low-friction-authoring. Descriptive slugs (e.g. tenant, pg-jsonb) are reserved for things meant to be referenced by name"
 decision rename-via-tokenizer "axm rename re-tokenizes each affected line and edits by Range rather than doing text find-replace — avoids accidentally rewriting an id that appears inside a string value or comment"
 decision lsp-rebuild-on-change "the LSP rebuilds the entire knowledge index on every document change AND after each batch of @cross-file-watching events, rather than doing incremental updates — fine at current scale, see @incremental-indexing-needed"
-decision cross-file-watching "the @lsp registers workspace/didChangeWatchedFiles for **/*.axm during onInitialized, so edits made outside the editor (axm add, axm rename, git checkout, agent writes) flow into open buffers without a manual reload. URIs the editor owns (in the documents collection) are skipped to avoid racing the live-document path. Serves @bridge-human-agent by keeping editor and CLI views in sync"
+decision cross-file-watching "the @lsp registers workspace/didChangeWatchedFiles for **/*.axm during onInitialized and also starts a chokidar watcher on the imported global KB root (if any), so edits made outside the editor (axm add, axm rename, git checkout, agent writes) flow into open buffers without a manual reload. URIs the editor owns (in the documents collection) are skipped to avoid racing the live-document path. Serves @bridge-human-agent by keeping editor and CLI views in sync"
 decision tree-sitter-separate "syntax highlighting lives in @tree-sitter-axm, completely independent of the TS @parser — editors get fast highlighting without invoking the LSP"
 decision tsconfig-project-refs "use TypeScript project references (tsc --build) so each workspace package compiles independently and Turbo can cache per-package outputs"
+decision axmconfig-root "use axmconfig.json as the explicit KB root marker, with include (glob patterns selecting local files), exclude (patterns filtered out after include), and import (path to another axmconfig.json) fields — this unlocks multi-KB workflows without introducing grammar changes; absence of the file falls back to legacy recursive-walk behaviour"
+decision plan-per-directory "each plan lives in its own directory with its own axmconfig.json rather than sharing a plans/ directory — isolation is structural (filesystem) rather than a config flag, so no new semantics are needed in @load-kb or the @lsp; axm init-plan scaffolds the directory with plan.axm, types.axm (task, spike, discussion, risk, milestone), and axmconfig.json with the import pre-wired"
+decision global-index-as-context "buildIndex accepts an optional globalIndex parameter; imported statements resolve references and type checks but are not added to the returned local index — the @cli and @lsp each carry local and global indexes separately so listing commands show only local content while lookup commands fall back to global"
 
 // ── Invariants ───────────────────────────────────────────────────────────────
 
@@ -69,7 +74,7 @@ constraint pnpm-only "build assumes pnpm — uses workspace:* protocol and pnpm-
 // ── Assumptions ──────────────────────────────────────────────────────────────
 
 assumption small-kb-scale "the @lsp rebuilding the entire index on every keystroke assumes KBs stay small — probably fine up to thousands of statements, worth measuring before that becomes a known problem"
-assumption single-workspace-root "the @lsp only scans workspace folders it is given on initialize — assumes the user opens the KB directory directly, not a parent containing it"
+assumption single-workspace-root "the @lsp only scans workspace folders it is given on initialize — assumes the user opens the KB directory directly; if that directory has an axmconfig.json with an import, the global KB is also loaded automatically"
 
 // ── Open questions ───────────────────────────────────────────────────────────
 
@@ -77,5 +82,6 @@ unknown incremental-indexing-needed "at what KB size does @lsp-rebuild-on-change
 unknown multi-line-values "should @single-line-statements be relaxed to allow multi-line string values, and what tokenizer changes would that require"
 unknown stable-id-policy "is there a project convention for when to use slug IDs vs auto-generated hex IDs, beyond the loose guidance in the spec"
 unknown publish-grammar "should @tree-sitter-axm be published so editors can install it without cloning the repo, and what is the maintenance cost"
-unknown lsp-config-discovery "should the LSP auto-discover the KB root by walking up looking for types.axm rather than relying on workspace folders — would simplify @single-workspace-root"
+decision lsp-config-discovery "the @lsp reads axmconfig.json from the workspace root folder on initialize rather than walking up the directory tree; if the config declares an import, a separate chokidar watcher is started for the global KB root — this satisfies @single-workspace-root without changing how editors pass folders"
 unknown versioning-strategy "all packages are at 0.1.0; what is the release/versioning plan once the format stabilises and external consumers appear"
+unknown lsp-missing-config-warning "should the LSP emit a warning diagnostic when no axmconfig.json is found in the workspace root, to signal that legacy mode is active and nudge users toward explicit config"

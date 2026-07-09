@@ -1,6 +1,6 @@
 import type { AxmError, IndexedStatement, IndexedType, KnowledgeIndex, SourceFile } from '@axiomata/core'
 
-export function buildIndex(files: SourceFile[]): { index: KnowledgeIndex; errors: AxmError[] } {
+export function buildIndex(files: SourceFile[], globalIndex?: KnowledgeIndex): { index: KnowledgeIndex; errors: AxmError[] } {
   const types = new Map<string, IndexedType>()
   const statements = new Map<string, IndexedStatement>()
   const errors: AxmError[] = []
@@ -19,12 +19,32 @@ export function buildIndex(files: SourceFile[]): { index: KnowledgeIndex; errors
             secondFile: file.path,
             secondRange: decl.range,
           })
+        } else if (globalIndex?.types.has(decl.name)) {
+          const existing = globalIndex.types.get(decl.name)!
+          errors.push({
+            code: 'DuplicateType',
+            name: decl.name,
+            firstFile: existing.file,
+            firstRange: existing.range,
+            secondFile: file.path,
+            secondRange: decl.range,
+          })
         } else {
           types.set(decl.name, { name: decl.name, description: decl.description, file: file.path, range: decl.range })
         }
       } else {
         if (statements.has(decl.id)) {
           const existing = statements.get(decl.id)!
+          errors.push({
+            code: 'DuplicateId',
+            id: decl.id,
+            firstFile: existing.file,
+            firstRange: existing.range,
+            secondFile: file.path,
+            secondRange: decl.range,
+          })
+        } else if (globalIndex?.statements.has(decl.id)) {
+          const existing = globalIndex.statements.get(decl.id)!
           errors.push({
             code: 'DuplicateId',
             id: decl.id,
@@ -51,12 +71,12 @@ export function buildIndex(files: SourceFile[]): { index: KnowledgeIndex; errors
     for (const decl of file.declarations) {
       if (decl.kind !== 'statement') continue
 
-      if (!types.has(decl.statementType)) {
+      if (!types.has(decl.statementType) && !globalIndex?.types.has(decl.statementType)) {
         errors.push({ code: 'UnknownType', name: decl.statementType, file: file.path, range: decl.range })
       }
 
       for (const seg of decl.value) {
-        if (seg.kind === 'reference' && !statements.has(seg.id)) {
+        if (seg.kind === 'reference' && !statements.has(seg.id) && !globalIndex?.statements.has(seg.id)) {
           errors.push({ code: 'UnresolvedReference', id: seg.id, file: file.path, range: seg.range })
         }
       }

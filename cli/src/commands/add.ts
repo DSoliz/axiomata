@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
-import { readdir, readFile, appendFile } from 'node:fs/promises'
-import { join, resolve, extname } from 'node:path'
+import { readFile, appendFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import type { SourceFile } from '@axiomata/core'
 import { loadKnowledgeBase } from '../load-kb.js'
 import { toJson } from '../format.js'
 
@@ -14,13 +15,11 @@ function generateId(existing: Set<string>): string {
   throw new Error('could not generate a unique id after 20 attempts')
 }
 
-async function resolveTargetFile(dir: string, file?: string): Promise<string> {
+function resolveTargetFile(dir: string, kbFiles: SourceFile[], file?: string): string {
   if (file) return resolve(file)
-  const root = resolve(dir)
-  const entries = (await readdir(root, { recursive: true, encoding: 'utf8' })) as string[]
-  const axmFiles = entries.filter(e => extname(e) === '.axm').map(e => join(root, e)).sort()
+  const axmFiles = kbFiles.map(f => f.path).sort()
   if (axmFiles.length === 0) {
-    throw new Error(`no .axm files found in ${root} — create one first`)
+    throw new Error(`no .axm files found in ${resolve(dir)} — create one first`)
   }
   if (axmFiles.length > 1) {
     const list = axmFiles.map(f => `  ${f}`).join('\n')
@@ -45,7 +44,10 @@ export async function addCommand(
   }
 
   const kb = await loadKnowledgeBase(dir)
-  const existingIds = new Set<string>(kb.index.statements.keys())
+  const existingIds = new Set<string>([
+    ...kb.index.statements.keys(),
+    ...(kb.globalIndex?.statements.keys() ?? []),
+  ])
 
   let id: string
   if (opts.id !== undefined) {
@@ -63,7 +65,7 @@ export async function addCommand(
     process.exit(1)
   }
 
-  const targetFile = await resolveTargetFile(dir, opts.file)
+  const targetFile = resolveTargetFile(dir, kb.files, opts.file)
   const line = `${opts.type} ${id} "${escapeValue(value)}"`
 
   // Append with a leading newline only if the file doesn't already end with one

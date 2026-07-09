@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseFile } from './parse-file.js'
 import { buildIndex } from './indexer.js'
-import type { SourceFile } from '@axiomata/core'
+import type { KnowledgeIndex, SourceFile } from '@axiomata/core'
 
 const TYPES = `type domain-term "a domain term"
 type decision "a decision"
@@ -128,5 +128,72 @@ describe('buildIndex', () => {
     expect(err.secondRange).toBeDefined()
     expect(err.firstRange.start.line).toBe(0)
     expect(err.secondRange.start.line).toBe(0)
+  })
+})
+
+describe('buildIndex with globalIndex', () => {
+  function makeGlobal(...sources: Array<[string, string]>): KnowledgeIndex {
+    return buildIndex(files(...sources)).index
+  }
+
+  it('resolves references to global statements without errors', () => {
+    const globalIndex = makeGlobal([TYPES, 'types.axm'], [DOMAIN, 'domain.axm'])
+    const { errors } = buildIndex(
+      files(['decision a1 "@fast-restaurant"', 'plan.axm']),
+      globalIndex,
+    )
+    expect(errors).toHaveLength(0)
+  })
+
+  it('resolves statements using global types without errors', () => {
+    const globalIndex = makeGlobal([TYPES, 'types.axm'])
+    const { errors } = buildIndex(
+      files(['decision a1 "local decision"', 'plan.axm']),
+      globalIndex,
+    )
+    expect(errors).toHaveLength(0)
+  })
+
+  it('reports DuplicateId when a local id collides with a global id', () => {
+    const globalIndex = makeGlobal([TYPES, 'types.axm'], [DOMAIN, 'domain.axm'])
+    const { errors } = buildIndex(
+      files(['decision fast-restaurant "collision"', 'plan.axm']),
+      globalIndex,
+    )
+    const err = errors.find(e => e.code === 'DuplicateId') as any
+    expect(err).toBeDefined()
+    expect(err.id).toBe('fast-restaurant')
+    expect(err.secondFile).toBe('plan.axm')
+  })
+
+  it('reports DuplicateType when a local type collides with a global type', () => {
+    const globalIndex = makeGlobal([TYPES, 'types.axm'])
+    const { errors } = buildIndex(
+      files(['type decision "local redeclaration"', 'plan.axm']),
+      globalIndex,
+    )
+    const err = errors.find(e => e.code === 'DuplicateType') as any
+    expect(err).toBeDefined()
+    expect(err.name).toBe('decision')
+    expect(err.secondFile).toBe('plan.axm')
+  })
+
+  it('does not include global statements in the returned local index', () => {
+    const globalIndex = makeGlobal([TYPES, 'types.axm'], [DOMAIN, 'domain.axm'])
+    const { index } = buildIndex(
+      files(['decision a1 "local"', 'plan.axm']),
+      globalIndex,
+    )
+    expect(index.statements.has('fast-restaurant')).toBe(false)
+    expect(index.statements.has('a1')).toBe(true)
+  })
+
+  it('still reports UnresolvedReference for ids absent from both local and global', () => {
+    const globalIndex = makeGlobal([TYPES, 'types.axm'])
+    const { errors } = buildIndex(
+      files(['decision a1 "@ghost"', 'plan.axm']),
+      globalIndex,
+    )
+    expect(errors.some(e => e.code === 'UnresolvedReference')).toBe(true)
   })
 })

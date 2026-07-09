@@ -8,6 +8,7 @@ import { addCommand } from './commands/add.js'
 import { refsCommand } from './commands/refs.js'
 import { renameCommand } from './commands/rename.js'
 import { initCommand } from './commands/init.js'
+import { initPlanCommand } from './commands/init-plan.js'
 import { summaryCommand } from './commands/summary.js'
 
 program
@@ -21,6 +22,13 @@ program
   .option('--json', 'output as JSON')
   .option('--json-min', 'output as minified JSON')
   .action((dir = '.', opts) => initCommand(dir, opts))
+
+program
+  .command('init-plan <name> [dir]')
+  .description('Create a new plan directory with plan.axm, types.axm, and axmconfig.json (default: current directory)')
+  .option('--import <path>', 'path to a global KB axmconfig.json to import as read-only context')
+  .option('--json', 'output as JSON')
+  .action((name, dir = '.', opts) => initPlanCommand(name, dir, opts))
 
 program
   .command('check [dir]')

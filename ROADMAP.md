@@ -1,15 +1,5 @@
 # Roadmap
 
-## CLI Features
-
-### axm.json — KB root config and namespace boundaries
-
-Introduce an `axm.json` file that explicitly marks the root of a knowledge base, unlocking monorepo support, LSP root auto-discovery, and per-KB ignore rules. Each `axm.json` defines one independent namespace — in a monorepo, multiple KBs coexist without statement IDs bleeding across package boundaries.
-
-Config shape: `{ "exclude": ["drafts/**", "vendor/**"] }`. The LSP walks up from the open file to find the nearest `axm.json` instead of relying on editor-provided workspace folders. The CLI walks up from `cwd` making `[dir]` optional; `axm init` writes `axm.json` alongside `types.axm`; `load-kb` reads and applies `exclude` patterns. Affects CLI + LSP.
-
----
-
 ## LSP Features
 
 ### High priority
